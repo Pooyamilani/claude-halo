@@ -1,6 +1,6 @@
 {
   "name": "halo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "a halo above your prompt: glowing rings for your 5-hour and weekly usage, the models (and effort) your session and subagents run on, and today's date in Jalali or Gregorian.",
   "author": {
     "name": "Pooya Milani",
