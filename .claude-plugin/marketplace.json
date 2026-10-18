@@ -1,0 +1,18 @@
+{
+  "name": "claude-halo",
+  "owner": {
+    "name": "Pooya Milani",
+    "url": "https://github.com/Pooyamilani"
+  },
+  "metadata": {
+    "description": "halo: a glass usage, models and date bar for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "halo",
+      "source": "./",
+      "description": "A quiet glass bar above the prompt: usage rings, running models with effort, and the date in Jalali or Gregorian.",
+      "version": "1.0.0"
+    }
+  ]
+}
