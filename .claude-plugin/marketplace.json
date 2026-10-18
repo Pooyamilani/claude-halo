@@ -12,7 +12,7 @@
       "name": "halo",
       "source": "./",
       "description": "a halo above your prompt: glowing usage rings, running models with effort, and the date in Jalali or Gregorian.",
-      "version": "1.1.0"
+      "version": "1.1.1"
     }
   ]
 }
