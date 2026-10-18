@@ -194,3 +194,34 @@ test('usage off: no halo mark, the rest still draws', { options: { usage: 'off' 
   expect(await ui.find({ type: 'Text', text: 'opus 5.5' })).toBeDefined()
   await ui.unmount()
 })
+
+// Background work runs on promise turns; a few hundred of them is plenty for it to finish.
+const settle = async () => {
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+}
+
+test('an update that finds nothing new writes nothing', async ($, on) => {
+  mock.clock(on)
+  let writes: string[] = []
+  on('state.set', ($, e, next) => {
+    writes.push(e.key)
+    return next(e)
+  })
+  await seed($, on)
+  expect(writes.length).toBeGreaterThan(0)
+  // The seed's model reports are recorded on the side; let them land first.
+  await settle()
+
+  // The same session start, the same requests: nothing changed, nothing written.
+  writes = []
+  await $.session.start({ source: 'startup', cwd: '/' } as never)
+  for await (const _ of $.turn.step({ turnId: 't', index: 1, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 } as never)) void _
+  for await (const _ of $.turn.step({ turnId: 't', index: 1, model: AGENTS[0]!.model, effort: AGENTS[0]!.effort, messageCount: 1, agentId: AGENTS[0]!.id } as never)) void _
+  await settle()
+  expect(writes).toEqual([])
+
+  // A real change is still written.
+  for await (const _ of $.turn.step({ turnId: 't', index: 2, model: 'claude-opus-5-5', effort: 'low', messageCount: 1 } as never)) void _
+  await settle()
+  expect(writes).toContain('efforts')
+})
