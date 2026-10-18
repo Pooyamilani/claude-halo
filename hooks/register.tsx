@@ -162,28 +162,35 @@ export const haloMark = (rings: MarkRing[], dots: string[], isWorking: boolean) 
 
 // ── state ────────────────────────────────────────────────────────────────
 
+// Every write below first checks the value really changed, so an update that
+// finds nothing new triggers no redraw. (Each atom is named at its own read and
+// write: the loader lists what a module stores from those call sites.)
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
 // The agent list carries no model or effort: turn.step reports both per
 // request, kept by agentId (MAIN for the main loop) and pruned to who runs.
 const refresh = async ($: EngineInterface) => {
   const list = (await $.agent.list()).filter(a => a.status === 'running' || a.status === 'pending')
   const live = new Set([MAIN, ...list.map(a => a.id)])
   const keep = (x: Record<string, string>) => Object.fromEntries(Object.entries(x).filter(([id]) => live.has(id)))
-  await update($, models, keep)
-  await update($, efforts, keep)
+  const stale = (x: Record<string, string>) => Object.keys(x).some(id => !live.has(id))
+  if (stale(await read($, models))) await update($, models, keep)
+  if (stale(await read($, efforts))) await update($, efforts, keep)
   const m: Record<string, string> = await read($, models)
   const ef: Record<string, string> = await read($, efforts)
   const running: RunningAgent[] = list.map(a => ({ id: a.id, type: a.type, model: m[a.id] ?? '', effort: ef[a.id] ?? '' }))
   const mainModel = m[MAIN] ?? (await $.session.model())
-  await update($, agents, () => running)
-  await update($, main, () => mainModel)
+  if (!same(await read($, agents), running)) await update($, agents, () => running)
+  if ((await read($, main)) !== mainModel) await update($, main, () => mainModel)
 }
 
 const recordStep = async ($: EngineInterface, id: string, model: string, effort: string) => {
   const m: Record<string, string> = await read($, models)
   const ef: Record<string, string> = await read($, efforts)
   if (m[id] === model && (ef[id] ?? '') === effort) return
-  await update($, models, x => ({ ...x, [id]: model }))
-  await update($, efforts, x => ({ ...x, [id]: effort }))
+  // `update` re-applies the change to the latest map, so agents reporting at once don't clash.
+  if (m[id] !== model) await update($, models, x => ({ ...x, [id]: model }))
+  if ((ef[id] ?? '') !== effort) await update($, efforts, x => ({ ...x, [id]: effort }))
   await refresh($)
 }
 
@@ -199,20 +206,23 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const { rateLimits } = await $.session.usage()
-    await update($, limits, () => rateLimits)
+    if (!same(await read($, limits), rateLimits)) await update($, limits, () => rateLimits)
     await refresh($)
     return next(e)
   })
 
   on('session.measure', async ($, e, next) => {
-    await update($, limits, () => e.rateLimits)
+    if (!same(await read($, limits), e.rateLimits)) await update($, limits, () => e.rateLimits)
     return next(e)
   })
 
   on('agent.spawn', async ($, e, next) => {
     const r = await next(e)
     const id = 'agentId' in r ? r.agentId : undefined
-    if (id && 'model' in r && r.model) await update($, models, m => ({ ...m, [id]: r.model }))
+    if (id && 'model' in r && r.model) {
+      const model = r.model
+      if (((await read($, models)) as Record<string, string>)[id] !== model) await update($, models, m => ({ ...m, [id]: model }))
+    }
     await refresh($)
     return r
   })
