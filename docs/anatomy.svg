@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="370" viewBox="0 70 1000 370" role="img" aria-label="How to read the halo: outer ring weekly limit, inner ring 5-hour limit, dots are running subagents, colors show how full each limit is">
+  <defs>
+    <radialGradient id="bg" cx="25%" cy="30%" r="90%">
+      <stop offset="0" stop-color="#171d2b"/>
+      <stop offset="1" stop-color="#0d1017"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+  <rect y="70" width="1000" height="370" rx="22" fill="url(#bg)"/>
+  <rect x=".5" y="70.5" width="999" height="369" rx="21.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+
+  <g font-family="Inter, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+
+    <!-- enlarged mark -->
+    <g transform="translate(220 240)">
+      <circle r="82" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="16"/>
+      <circle r="48" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="16"/>
+      <g filter="url(#glow)" opacity=".8">
+        <circle r="82" fill="none" stroke="#8f9bff" stroke-width="16" stroke-linecap="round" stroke-dasharray="196 515" transform="rotate(-90)"/>
+        <circle r="48" fill="none" stroke="#4fd1b5" stroke-width="16" stroke-linecap="round" stroke-dasharray="127 302" transform="rotate(-90)"/>
+      </g>
+      <circle r="82" fill="none" stroke="#8f9bff" stroke-width="16" stroke-linecap="round" stroke-dasharray="196 515" transform="rotate(-90)"/>
+      <circle r="48" fill="none" stroke="#4fd1b5" stroke-width="16" stroke-linecap="round" stroke-dasharray="127 302" transform="rotate(-90)"/>
+      <circle cx="0" cy="-114" r="8" fill="#e07a52"/>
+      <circle cx="99" cy="57" r="8" fill="#4fd1b5"/>
+      <circle cx="-99" cy="57" r="8" fill="#8f9bff"/>
+    </g>
+
+    <!-- callouts -->
+    <g stroke="#5b6372" stroke-width="1.5" fill="none">
+      <path d="M300 214 H420"/>
+      <path d="M268 240 C330 240 340 270 420 270"/>
+      <path d="M276 304 C300 344 380 326 420 326"/>
+      <path d="M228 126 C300 110 340 158 420 158"/>
+    </g>
+    <g fill="#5b6372"><circle cx="300" cy="214" r="3"/><circle cx="268" cy="240" r="3"/><circle cx="276" cy="304" r="3"/><circle cx="228" cy="126" r="3"/></g>
+
+    <g font-size="17">
+      <text x="430" y="164" fill="#f2f4f8">Dots <tspan fill="#8b93a1">· one per running subagent, colored by its model</tspan></text>
+      <text x="430" y="220" fill="#f2f4f8">Outer ring <tspan fill="#8b93a1">· weekly limit used</tspan></text>
+      <text x="430" y="276" fill="#f2f4f8">Inner ring <tspan fill="#8b93a1">· 5-hour limit used</tspan></text>
+      <text x="430" y="332" fill="#f2f4f8">Glow <tspan fill="#8b93a1">· pulses while Claude works, still between turns</tspan></text>
+    </g>
+
+    <!-- legends -->
+    <g font-size="14" fill="#8b93a1">
+      <text x="430" y="386" fill="#5b6372" letter-spacing="1.5">LIMITS</text>
+      <circle cx="520" cy="381" r="6" fill="#4fd1b5"/><circle cx="536" cy="381" r="6" fill="#8f9bff"/><text x="548" y="386">under 75%</text>
+      <circle cx="640" cy="381" r="6" fill="#f2b84b"/><text x="652" y="386">75–90%</text>
+      <circle cx="732" cy="381" r="6" fill="#f0645c"/><text x="744" y="386">90%+</text>
+
+      <text x="430" y="414" fill="#5b6372" letter-spacing="1.5">MODELS</text>
+      <circle cx="520" cy="409" r="6" fill="#e07a52"/><text x="532" y="414">opus</text>
+      <circle cx="592" cy="409" r="6" fill="#8f9bff"/><text x="604" y="414">sonnet</text>
+      <circle cx="678" cy="409" r="6" fill="#4fd1b5"/><text x="690" y="414">haiku</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 46 46" role="img" aria-label="halo">
+  <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+  <circle cx="23" cy="23" r="15" fill="none" stroke="#8b93a1" stroke-opacity=".25" stroke-width="3.2"/>
+  <circle cx="23" cy="23" r="9" fill="none" stroke="#8b93a1" stroke-opacity=".25" stroke-width="3.2"/>
+  <g filter="url(#glow)" opacity=".7">
+    <circle cx="23" cy="23" r="15" fill="none" stroke="#8f9bff" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="62 94.25" transform="rotate(-90 23 23)"/>
+    <circle cx="23" cy="23" r="9" fill="none" stroke="#4fd1b5" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="38 56.55" transform="rotate(-90 23 23)"/>
+  </g>
+  <circle cx="23" cy="23" r="15" fill="none" stroke="#8f9bff" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="62 94.25" transform="rotate(-90 23 23)"/>
+  <circle cx="23" cy="23" r="9" fill="none" stroke="#4fd1b5" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="38 56.55" transform="rotate(-90 23 23)"/>
+  <circle cx="23" cy="2.5" r="2" fill="#e07a52"/>
+  <circle cx="40.75" cy="33.25" r="2" fill="#4fd1b5"/>
+  <circle cx="5.25" cy="33.25" r="2" fill="#8f9bff"/>
+</svg>
