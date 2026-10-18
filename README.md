@@ -6,9 +6,13 @@ A quiet glass bar for [Claude Code](https://docs.claude.com/en/docs/claude-code)
 - **Models**: the model your session runs on, and every running subagent with its model, each with its effort level
 - **Date**: today in the Jalali (Persian) or Gregorian calendar
 
-```
-◔ 62%  5h · 2h 14m    ◔ 38%  week · 3d 4h    ✳ opus 5.5  high    ● Explore  haiku 4.5 · medium        یکشنبه ۲۶ مهر
-```
+![halo above the prompt: usage rings, models with effort, and the Jalali date](docs/halo-wide.png)
+
+On a narrow window, extra agents fold into a single chip:
+
+<img src="docs/halo-narrow.png" alt="halo on a narrow window, with 8 agents folded into +8" width="488">
+
+<sub>Rendered from halo's own output with sample data: the tree the mod returns in the desktop app, drawn with the same colors and rings.</sub>
 
 In the desktop app the bar is drawn as soft glass with real rings. In a terminal the same bar is drawn as plain colored text.
 
