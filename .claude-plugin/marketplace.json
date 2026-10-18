@@ -5,14 +5,14 @@
     "url": "https://github.com/Pooyamilani"
   },
   "metadata": {
-    "description": "halo: a glass usage, models and date bar for Claude Code"
+    "description": "halo: a halo above your Claude Code prompt"
   },
   "plugins": [
     {
       "name": "halo",
       "source": "./",
-      "description": "A quiet glass bar above the prompt: usage rings, running models with effort, and the date in Jalali or Gregorian.",
-      "version": "1.0.0"
+      "description": "a halo above your prompt: glowing usage rings, running models with effort, and the date in Jalali or Gregorian.",
+      "version": "1.1.0"
     }
   ]
 }
