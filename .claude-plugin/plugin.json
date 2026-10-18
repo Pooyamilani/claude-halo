@@ -1,33 +1,56 @@
 {
   "name": "halo",
-  "version": "1.0.0",
-  "description": "A quiet glass bar above the prompt: 5-hour and weekly usage rings, the models (and effort) your session and subagents run on, and today's date in Jalali or Gregorian.",
-  "author": { "name": "Pooya Milani", "url": "https://github.com/Pooyamilani" },
+  "version": "1.1.0",
+  "description": "a halo above your prompt: glowing rings for your 5-hour and weekly usage, the models (and effort) your session and subagents run on, and today's date in Jalali or Gregorian.",
+  "author": {
+    "name": "Pooya Milani",
+    "url": "https://github.com/Pooyamilani"
+  },
   "homepage": "https://github.com/Pooyamilani/claude-halo",
   "repository": "https://github.com/Pooyamilani/claude-halo",
   "license": "MIT",
-  "keywords": ["usage", "rate-limit", "status", "jalali", "persian", "subagents"],
+  "keywords": [
+    "usage",
+    "rate-limit",
+    "status",
+    "jalali",
+    "persian",
+    "subagents"
+  ],
   "types": "./types/index.d.ts",
   "userConfig": {
     "usage": {
       "type": "string",
       "title": "Usage limits",
       "description": "Which rate-limit rings to show",
-      "options": ["both", "5h", "weekly", "off"],
+      "options": [
+        "both",
+        "5h",
+        "weekly",
+        "off"
+      ],
       "default": "both"
     },
     "models": {
       "type": "string",
       "title": "Models",
       "description": "Show the main model and running subagents, with or without effort",
-      "options": ["model+effort", "model", "off"],
+      "options": [
+        "model+effort",
+        "model",
+        "off"
+      ],
       "default": "model+effort"
     },
     "date": {
       "type": "string",
       "title": "Date",
       "description": "Calendar for the date on the right",
-      "options": ["jalali", "gregorian", "off"],
+      "options": [
+        "jalali",
+        "gregorian",
+        "off"
+      ],
       "default": "jalali"
     }
   }
