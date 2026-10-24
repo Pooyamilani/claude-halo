@@ -8,6 +8,8 @@ const main = atom({ plugin: 'halo', key: 'main' } as const, '')
 const agents = atom({ plugin: 'halo', key: 'agents' } as const, [])
 const models = atom({ plugin: 'halo', key: 'models' } as const, {})
 const efforts = atom({ plugin: 'halo', key: 'efforts' } as const, {})
+const expanded = atom({ plugin: 'halo', key: 'expanded' } as const, false)
+const shown = atom({ plugin: 'halo', key: 'shown' } as const, 0)
 const MAIN = 'main'
 
 // ── palette ──────────────────────────────────────────────────────────────
@@ -16,7 +18,7 @@ const MAIN = 'main'
 // The ring, its number and the bar's rim always share one color, so nothing needs a legend.
 const WINDOWS = [
   { kind: 'five_hour', label: '5-hour', short: '5h', calm: '#4fd1b5', glyph: '◉', radius: 9 },
-  { kind: 'seven_day', label: 'Weekly', short: 'week', calm: '#8f9bff', glyph: '◎', radius: 15 },
+  { kind: 'seven_day', label: 'Weekly', short: 'week', calm: '#8f9bff', glyph: '◎', radius: 14.5 },
 ]
 const WARM = '#f2b84b'
 const HOT = '#f0645c'
@@ -80,14 +82,20 @@ export const resetsIn = (iso: string | undefined, now: number) => {
 
 // One chip of the bar: an optional colored glyph, a strong text and a dim one
 // (`full` while there is room, `dim` once the bar is compact).
-export type Chip = { key: string; color: string; glyph?: string; textColor?: string; text: string; dim: string; full: string }
+export type Chip = { key: string; color: string; glyph?: string; textColor?: string; text: string; dim: string; full: string; pad?: number }
 
 const GAP = 3 // cells between chips
 const FRAME = 4 // border + padding on both sides
 const MARK = 5 // the halo mark (desktop) and its gap
-const chipWidth = (c: Chip, compact: boolean) => {
+// The desktop sets text in a proportional font, about 15% narrower than the
+// column grid it reports `bodyColumns` in (measured: ~7.3px a character
+// against ~8.5px a column); the terminal's text fills its cells exactly.
+// Gaps and the mark are sized in columns on both, so only text is scaled.
+export const DESKTOP_TEXT = 0.85
+export const BUTTON_PAD = 2
+const chipWidth = (c: Chip, compact: boolean, text: number) => {
   const dim = compact ? c.dim : c.full
-  return (c.glyph ? 2 : 0) + c.text.length + (dim ? 1 + dim.length : 0)
+  return (c.glyph ? 2 : 0) + (c.pad ?? 0) + Math.ceil((c.text.length + (dim ? 1 + dim.length : 0)) * text)
 }
 
 /**
@@ -96,19 +104,20 @@ const chipWidth = (c: Chip, compact: boolean) => {
  * efforts (compact), then the date. `lead` is the room something before the
  * chips takes (the halo mark). Anything left still too wide wraps.
  */
-export const fit = (cols: number, base: Chip[], agentChips: Chip[], date: string, lead = 0) => {
+export const fit = (cols: number, base: Chip[], agentChips: Chip[], date: string, lead = 0, text = 1, pad = 0) => {
   // "+2 more" beside the agents that fit; "3 agents" when none of them fit.
   const more = (n: number, shown: number): Chip[] => {
     if (n === 0) return []
     const dim = shown > 0 ? 'more' : n === 1 ? 'agent' : 'agents'
-    return [{ key: 'more', color: MORE_COLOR, glyph: '●', text: shown > 0 ? `+${n}` : `${n}`, dim, full: dim }]
+    // No dot: the count is plain text; each agent's own dot (and the halo's) carries its model.
+    return [{ key: 'more', color: MORE_COLOR, text: shown > 0 ? `+${n}` : `${n}`, dim, full: dim, pad }]
   }
   let last = { chips: base, compact: true, date: '' }
   for (const d of date ? [date, ''] : ['']) {
     for (const compact of [false, true]) {
       for (let k = agentChips.length; k >= 0; k--) {
         const chips = [...base, ...agentChips.slice(0, k), ...more(agentChips.length - k, k)]
-        const width = FRAME + lead + chips.reduce((n, c) => n + chipWidth(c, compact) + GAP, 0) + d.length
+        const width = FRAME + lead + chips.reduce((n, c) => n + chipWidth(c, compact, text) + GAP, 0) + Math.ceil(d.length * text)
         last = { chips, compact, date: d }
         if (width <= cols) return last
       }
@@ -122,6 +131,19 @@ export const fit = (cols: number, base: Chip[], agentChips: Chip[], date: string
 export type MarkRing = { radius: number; pct: number; color: string; hasReading: boolean }
 
 const MAX_DOTS = 8
+// The mark's geometry, in its 48-unit box centred on (24, 24): bold rings,
+// and an orbit in a lane of its own, clear of the outer ring (ring edge 16.3,
+// dots from 18.7 out), so at MARK_PX the rings span ~24px, each agent dot is
+// ~4px, and ~2px of air separates the two.
+const MARK_PX = 36
+const BOX = 48
+const MID = BOX / 2
+const RING_STROKE = 3.6
+const ORBIT = 21.2
+const DOT = 2.5
+// A waiting or idle agent's dot: faded, but still plain to see at this size.
+const QUIET = '99'
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
 /**
  * The halo: the weekly ring outside, the 5-hour ring inside, a soft glow on
@@ -133,8 +155,8 @@ export const haloMark = (rings: MarkRing[], dots: string[], isWorking: boolean) 
   const arc = (r: MarkRing, extra: string) => {
     const C = 2 * Math.PI * r.radius
     const lit = (C * Math.min(Math.max(r.pct, 0), 100)) / 100
-    return `<circle cx="23" cy="23" r="${r.radius}" fill="none" stroke="${r.color}" stroke-width="3.2" stroke-linecap="round"
-      stroke-dasharray="${lit.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 23 23)"${extra}/>`
+    return `<circle cx="${MID}" cy="${MID}" r="${r.radius}" fill="none" stroke="${r.color}" stroke-width="${RING_STROKE}" stroke-linecap="round"
+      stroke-dasharray="${lit.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 ${MID} ${MID})"${extra}/>`
   }
   // Visible even when calm, brighter as a limit fills.
   const glowOpacity = (pct: number) => ({ calm: 0.6, warm: 0.8, hot: 1 })[level(pct)]
@@ -142,18 +164,18 @@ export const haloMark = (rings: MarkRing[], dots: string[], isWorking: boolean) 
     ? `<animate attributeName="opacity" values=".25;1;.25" dur="2.6s" repeatCount="indefinite"/>`
     : ''
   const spin = isWorking
-    ? `<animateTransform attributeName="transform" type="rotate" from="0 23 23" to="360 23 23" dur="14s" repeatCount="indefinite"/>`
+    ? `<animateTransform attributeName="transform" type="rotate" from="0 ${MID} ${MID}" to="360 ${MID} ${MID}" dur="14s" repeatCount="indefinite"/>`
     : ''
   const shown = dots.slice(0, MAX_DOTS)
   const dot = (color: string, i: number) => {
     const a = (2 * Math.PI * i) / shown.length - Math.PI / 2
-    return `<circle class="agent" cx="${(23 + 20.5 * Math.cos(a)).toFixed(2)}" cy="${(23 + 20.5 * Math.sin(a)).toFixed(2)}" r="2" fill="${color}"/>`
+    return `<circle class="agent" cx="${(MID + ORBIT * Math.cos(a)).toFixed(2)}" cy="${(MID + ORBIT * Math.sin(a)).toFixed(2)}" r="${DOT}" fill="${color}"/>`
   }
   // The outer band holds the orbiting dots; with no agents the rings zoom in to fill the box.
-  const viewBox = shown.length > 0 ? '0 0 46 46' : '4 4 38 38'
+  const viewBox = shown.length > 0 ? `0 0 ${BOX} ${BOX}` : '6 6 36 36'
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
   <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2"/></filter></defs>
-  ${rings.map(r => `<circle cx="23" cy="23" r="${r.radius}" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>`).join('')}
+  ${rings.map(r => `<circle cx="${MID}" cy="${MID}" r="${r.radius}" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="${RING_STROKE}"/>`).join('')}
   <g filter="url(#glow)">${rings.filter(r => r.hasReading).map(r => `<g opacity="${glowOpacity(r.pct)}">${arc(r, '')}</g>`).join('')}${breathe}</g>
   ${rings.filter(r => r.hasReading).map(r => arc(r, '')).join('')}
   <g>${shown.map(dot).join('')}${spin}</g>
@@ -170,7 +192,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 // The agent list carries no model or effort: turn.step reports both per
 // request, kept by agentId (MAIN for the main loop) and pruned to who runs.
 const refresh = async ($: EngineInterface) => {
-  const list = (await $.agent.list()).filter(a => a.status === 'running' || a.status === 'pending')
+  // Every agent that is still alive: running a turn (or about to), waiting on
+  // background work it owns, or idle between turns. Only an ended one leaves.
+  const list = (await $.agent.list()).filter(a => a.status === 'pending' || a.status === 'running' || a.status === 'waiting' || a.status === 'idle')
   const live = new Set([MAIN, ...list.map(a => a.id)])
   const keep = (x: Record<string, string>) => Object.fromEntries(Object.entries(x).filter(([id]) => live.has(id)))
   const stale = (x: Record<string, string>) => Object.keys(x).some(id => !live.has(id))
@@ -178,9 +202,19 @@ const refresh = async ($: EngineInterface) => {
   if (stale(await read($, efforts))) await update($, efforts, keep)
   const m: Record<string, string> = await read($, models)
   const ef: Record<string, string> = await read($, efforts)
-  const running: RunningAgent[] = list.map(a => ({ id: a.id, type: a.type, model: m[a.id] ?? '', effort: ef[a.id] ?? '' }))
+  // What the agent was asked to do reads best as its name; the type stays its own column.
+  const running: RunningAgent[] = list.map(a => ({
+    id: a.id, type: a.type, name: a.name ?? a.description, model: m[a.id] ?? '', effort: ef[a.id] ?? '',
+    state: a.status === 'waiting' || a.status === 'idle' ? a.status : 'running',
+  }))
   const mainModel = m[MAIN] ?? (await $.session.model())
   if (!same(await read($, agents), running)) await update($, agents, () => running)
+  // With every agent gone the table closes, so the next run starts folded.
+  if (running.length === 0 && (await read($, expanded))) {
+    slide++
+    await update($, expanded, () => false)
+    await update($, shown, () => 0)
+  }
   if ((await read($, main)) !== mainModel) await update($, main, () => mainModel)
 }
 
@@ -194,6 +228,39 @@ const recordStep = async ($: EngineInterface, id: string, model: string, effort:
   await refresh($)
 }
 
+// ── the agents table ────────────────────────────────────────────────────
+
+// Clicking an agent chip opens the table and fades it in; clicking again
+// fades it out and closes it. A slide that redraws a growing table row by row
+// jumps in height on every step, so the height changes once and only the ink
+// moves: `shown` is the fade phase, 1 (faint) to FULL. A newer click cancels a
+// fade still running.
+const FADE_MS = 60
+const FULL = 3
+let slide = 0
+
+const toggleTable = async ($: EngineInterface) => {
+  const mine = ++slide
+  if (!(await read($, expanded))) {
+    await update($, shown, () => 1)
+    await update($, expanded, () => true)
+    for (let phase = 2; phase <= FULL; phase++) {
+      await $.clock.sleep(FADE_MS)
+      if (mine !== slide) return
+      await update($, shown, () => phase)
+    }
+    return
+  }
+  for (let phase = Math.min(await read($, shown), FULL) - 1; phase >= 1; phase--) {
+    await $.clock.sleep(FADE_MS)
+    if (mine !== slide) return
+    await update($, shown, () => phase)
+  }
+  await $.clock.sleep(FADE_MS)
+  if (mine !== slide) return
+  await update($, expanded, () => false)
+}
+
 // ── hooks ────────────────────────────────────────────────────────────────
 
 export const register: Register = (on, options) => {
@@ -201,6 +268,8 @@ export const register: Register = (on, options) => {
   const modelMode = String(options.models ?? 'model+effort')
   const dateMode = String(options.date ?? 'jalali')
   const withEffort = modelMode === 'model+effort'
+  const showSession = String(options.sessionModel ?? 'show') === 'show'
+  const tableMode = String(options.agentTable ?? 'agents')
   const windows = WINDOWS.filter(w =>
     usage === 'both' || (usage === '5h' && w.kind === 'five_hour') || (usage === 'weekly' && w.kind === 'seven_day'))
 
@@ -251,7 +320,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const ui = $.ui.resolve(e)
-    const { Box, Text } = ui
+    const { Box, Text, Button } = ui
     const now = await $.clock.now()
     const list: Limit[] = await read($, limits)
     const mainModel: string = modelMode === 'off' ? '' : await read($, main)
@@ -277,49 +346,123 @@ export const register: Register = (on, options) => {
       dim: r.short,
       full: r.reset ? `${r.short} · ${r.reset}` : r.short,
     }))
-    if (mainModel !== '') {
+    if (mainModel !== '' && showSession) {
       base.push({ key: MAIN, color: modelColor(mainModel), glyph: '✳', text: shortModel(mainModel), dim: '', full: withEffort ? mainEffort : '' })
     }
+    // On desktop a clickable chip is a native button, padded on both sides:
+    // measured, about two columns that its text alone doesn't account for.
+    const buttonPad = hasSvg && tableMode !== 'off' ? BUTTON_PAD : 0
     const agentChips: Chip[] = running.map(a => {
       const model = a.model ? shortModel(a.model) : 'inherit'
       const color = modelColor(a.model || mainModel)
-      return { key: a.id, color, glyph: '●', text: a.type, dim: model, full: [model, withEffort ? a.effort : ''].filter(Boolean).join(' · ') }
+      // A waiting or idle agent is alive but not working: its dot is drawn faded.
+      return { key: a.id, color: a.state === 'running' ? color : `${color}${QUIET}`, glyph: '●', text: a.type, dim: model, full: [model, withEffort ? a.effort : ''].filter(Boolean).join(' · '), pad: buttonPad }
     })
 
     if (base.length === 0 && agentChips.length === 0 && date === '') return next(e)
 
     const showMark = hasSvg && readings.length > 0
     const cols = e.props.bodyColumns > 0 ? e.props.bodyColumns : 120
-    const bar = fit(cols, base, agentChips, date, showMark ? MARK : 0)
+    // The chevron beside the last agent chip takes two cells of its own.
+    const chevronRoom = tableMode !== 'off' && running.length > 0 ? 2 : 0
+    const bar = fit(cols, base, agentChips, date, (showMark ? MARK : 0) + chevronRoom, hasSvg ? DESKTOP_TEXT : 1, buttonPad)
 
     // The rim always glows faintly: teal while calm (or before the first reading),
     // then the tighter limit's amber or red.
     const tight = readings.filter(r => r.l).sort((x, y) => y.pct - x.pct)[0]
     const rim = { calm: '#4fd1b55c', warm: `${WARM}80`, hot: `${HOT}99` }[tight ? level(tight.pct) : 'calm']
 
+    // Clicking an agent chip (or the agent count) opens a table of every running
+    // agent inside the bar; clicking again closes it.
+    const hasTable = tableMode !== 'off' && running.length > 0
+    const isOpen: boolean = hasTable && (await read($, expanded))
+    const phase: number = isOpen ? await read($, shown) : 0
+    const tableRows = [
+      ...(tableMode === 'agents+session' && mainModel !== '' ? [{ key: MAIN, name: 'this session', type: 'main', model: mainModel, effort: mainEffort }] : []),
+      ...running.map(a => ({ key: a.id, name: `${clip(a.name || a.type, 40)}${a.state === 'running' ? '' : ` · ${a.state}`}`, type: a.type, model: a.model, effort: a.effort, isQuiet: a.state !== 'running' })),
+    ].map(r => ({ ...r, name: clip(r.name, 50), model: r.model ? shortModel(r.model) : 'inherit', color: modelColor(r.model || mainModel) }))
+    const table = () => {
+      if (!isOpen || phase === 0) return null
+      // Text fades through the theme's own dim and normal styles, so it reads on
+      // any theme; the model dots fade through alpha.
+      const isFull = phase >= FULL
+      const dotAlpha = ['', '55', 'aa', ''][Math.min(phase, FULL)]
+      const head = ['Agent', 'Type', 'Model', ...(withEffort ? ['Effort'] : [])]
+      const cells = (r: (typeof tableRows)[number]) => [r.name, r.type, r.model, ...(withEffort ? [r.effort || '–'] : [])]
+      const widths = head.map((label, i) => Math.max(label.length, ...tableRows.map(r => cells(r)[i]!.length)) + 2)
+      return (
+        <Box key="agents" flexDirection="column" paddingTop={1} paddingBottom={1}>
+          <Box flexDirection="row">
+            {head.map((label, i) => (
+              <Box key={label} flexDirection="row" width={widths[i]! + (i === 0 ? 2 : 0)} flexShrink={0}>
+                {i === 0 && <Box width={2} flexShrink={0} />}
+                <Text dimColor bold={isFull}>{label}</Text>
+              </Box>
+            ))}
+          </Box>
+          {tableRows.map(r => (
+            <Box key={r.key} flexDirection="row">
+              {cells(r).map((c, i) => (
+                <Box key={String(i)} flexDirection="row" width={widths[i]! + (i === 0 ? 2 : 0)} flexShrink={0}>
+                  {/* The dot gets a fixed two-column slot, so names line up under the header. */}
+                  {i === 0 && <Box width={2} flexShrink={0}><Text color={`${r.color}${dotAlpha || ('isQuiet' in r && r.isQuiet ? QUIET : '')}`}>{r.key === MAIN ? '✳' : '●'}</Text></Box>}
+                  <Text dimColor={!isFull || (i !== 0 && i !== 2)}>{c}</Text>
+                </Box>
+              ))}
+            </Box>
+          ))}
+        </Box>
+      )
+    }
+
     const mark = () => {
       if (!showMark || !('Svg' in ui)) return null
       const { Svg } = ui
       const rings: MarkRing[] = readings.map(r => ({ radius: r.radius, pct: r.pct, color: r.color, hasReading: !!r.l }))
-      const dots = running.map(a => modelColor(a.model || mainModel))
+      const dots = running.map(a => `${modelColor(a.model || mainModel)}${a.state === 'running' ? '' : QUIET}`)
       const alt = [
         ...readings.map(r => (r.l ? `${r.label} ${Math.round(r.pct)}% used` : `${r.label} no reading yet`)),
         running.length ? `${running.length} agent${running.length === 1 ? '' : 's'} running` : '',
       ].filter(Boolean).join(', ')
       return (
         <Box key="halo" flexShrink={0}>
-          <Svg source={haloMark(rings, dots, e.props.isWorking)} alt={alt} width={28} height={28} isInteractive={e.props.isWorking || undefined} />
+          <Svg source={haloMark(rings, dots, e.props.isWorking)} alt={alt} width={MARK_PX} height={MARK_PX} isInteractive={e.props.isWorking || undefined} />
         </Box>
       )
     }
 
+    const isAgentChip = (key: string) => key === 'more' || running.some(a => a.id === key)
+    // The chevron sits on the last agent chip drawn: the count when agents fold, else the last agent.
+    const agentKeys = bar.chips.filter(c => isAgentChip(c.key)).map(c => c.key)
+    const chevronKey = agentKeys[agentKeys.length - 1]
+
     return (
-      <Box flexDirection="row" alignItems="center" justifyContent="space-between" columnGap={GAP}
+      <Box flexDirection="column"
         {...(hasSvg ? { paddingX: 1, backgroundColor: '#ffffff0a', borderStyle: 'round', borderColor: rim } : {})}>
+      <Box flexDirection="row" alignItems="center" justifyContent="space-between" columnGap={GAP}>
         <Box flexDirection="row" alignItems="center" flexWrap="wrap" flexShrink={1} columnGap={GAP}>
           {mark()}
           {bar.chips.map(c => {
             const dim = bar.compact ? c.dim : c.full
+            if (hasTable && isAgentChip(c.key)) {
+              // A desktop draws each Button as a native button with its own padding,
+              // so two side by side sit far apart. The chevron therefore never gets
+              // a button of its own: on the count it ends the same label after an
+              // en space (which no surface collapses), and after an agent's dim
+              // model it is plain text.
+              const toggle = () => { toggleTable($).catch(() => {}) }
+              const isCount = c.key === 'more'
+              const chevron = c.key === chevronKey ? (isOpen ? '▴' : '▾') : ''
+              const label = isCount ? [`${c.text}${dim ? ` ${dim}` : ''}`, chevron].filter(Boolean).join('\u2002') : c.text
+              return (
+                <Box key={c.key} flexDirection="row" alignItems="center" columnGap={1} flexShrink={0}>
+                  {c.glyph !== undefined && <Text color={c.color}>{c.glyph}</Text>}
+                  <Button key={`${c.key}:open`} plain label={label} onPress={toggle} />
+                  {!isCount && dim !== '' && <Text dimColor wrap="truncate-end">{dim}</Text>}
+                  {!isCount && chevron !== '' && <Text dimColor>{chevron}</Text>}
+                </Box>
+              )
+            }
             return (
               <Box key={c.key} flexDirection="row" alignItems="center" columnGap={1} flexShrink={0}>
                 {c.glyph !== undefined && <Text color={c.color}>{c.glyph}</Text>}
@@ -334,6 +477,8 @@ export const register: Register = (on, options) => {
             <Text dimColor>{bar.date}</Text>
           </Box>
         )}
+      </Box>
+      {table()}
       </Box>
     )
   })

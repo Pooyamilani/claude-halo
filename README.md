@@ -44,6 +44,7 @@
 | Ring color | Teal or blue is fine, **amber** past 75%, **red** past 90%. The number beside it uses the same color. |
 | Bar outline | A faint teal glow, turning amber or red with whichever limit is tighter |
 | Dots around the halo | One per running subagent: orange opus, blue sonnet, teal haiku |
+| `▾` on the agents | Click an agent chip or the agent count: a table slides open inside the bar listing every running agent with its task, type, model and effort. Click again to close it. |
 | Soft pulse | Claude is working. The halo is still between turns. |
 
 Every value is also written out as text (`42% 5h · 2h 14m`), so the colors are a hint, never the only signal.
@@ -92,17 +93,24 @@ The install shows a screen with the options below. Installed at the user scope, 
 
 ## Options
 
-| Option   | Values                           | Default        |
-| -------- | -------------------------------- | -------------- |
-| `usage`  | `both`, `5h`, `weekly`, `off`    | `both`         |
-| `models` | `model+effort`, `model`, `off`   | `model+effort` |
-| `date`   | `jalali`, `gregorian`, `off`     | `jalali`       |
+| Option         | Values                               | Default        |
+| -------------- | ------------------------------------ | -------------- |
+| `usage`        | `both`, `5h`, `weekly`, `off`        | `both`         |
+| `models`       | `model+effort`, `model`, `off`       | `model+effort` |
+| `sessionModel` | `show`, `hide`                       | `show`         |
+| `agentTable`   | `agents`, `agents+session`, `off`    | `agents`       |
+| `date`         | `jalali`, `gregorian`, `off`         | `jalali`       |
+
+- `sessionModel: hide` drops the main session's model from the bar, leaving room for running subagents.
+- `agentTable` sets what clicking an agent chip opens: a table of every running agent (`agents`), the same with a row for this session (`agents+session`), or nothing (`off`).
 
 Change them in the config menu, or in `~/.claude/settings.json`:
 
 ```json
 "pluginConfigs": {
-  "halo": { "usage": "both", "models": "model+effort", "date": "gregorian" }
+  "halo": {
+    "options": { "sessionModel": "hide", "agentTable": "agents+session", "date": "gregorian" }
+  }
 }
 ```
 
