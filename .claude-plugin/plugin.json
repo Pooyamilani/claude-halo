@@ -1,6 +1,6 @@
 {
   "name": "halo",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "a halo above your prompt: glowing rings for your 5-hour and weekly usage, the models (and effort) your session and subagents run on, and today's date in Jalali or Gregorian.",
   "author": {
     "name": "Pooya Milani",
@@ -41,6 +41,27 @@
         "off"
       ],
       "default": "model+effort"
+    },
+    "sessionModel": {
+      "type": "string",
+      "title": "Session model",
+      "description": "Show the main session's model chip, or only running subagents",
+      "options": [
+        "show",
+        "hide"
+      ],
+      "default": "show"
+    },
+    "agentTable": {
+      "type": "string",
+      "title": "Agents table",
+      "description": "Clicking an agent chip opens a table of running agents, optionally with this session too",
+      "options": [
+        "agents",
+        "agents+session",
+        "off"
+      ],
+      "default": "agents"
     },
     "date": {
       "type": "string",
