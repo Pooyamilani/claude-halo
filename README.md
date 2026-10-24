@@ -10,6 +10,8 @@
 
 **halo** is a quiet glass bar pinned just above your Claude Code prompt. One glance tells you how much of your limits is left, which models are working for you right now, and what day it is.
 
+**Works in the Claude desktop app and in any terminal, including the integrated terminal in VS Code and other editors.**
+
 ![halo above the prompt while Claude works with three subagents](docs/halo-wide.png)
 
 ## What it shows
@@ -67,7 +69,9 @@ Anything still too wide wraps onto a second line instead of overflowing.
 
 ### In a terminal
 
-A terminal can't draw rings, so each limit gets a colored `◉` (5-hour) or `◎` (weekly) instead. Everything else works the same.
+A terminal can't draw rings, so each limit gets a colored `◉` (5-hour) or `◎` (weekly) instead. Everything else works the same, in a standalone terminal or in the one built into VS Code.
+
+<sub>The chat panel of the Claude Code extension for VS Code doesn't show mod bars yet: Claude Code only draws this band in the desktop app and the terminal. Run `claude` in VS Code's integrated terminal to see halo there.</sub>
 
 ![halo in a terminal](docs/halo-terminal.png)
 
