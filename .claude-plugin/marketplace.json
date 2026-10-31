@@ -1,18 +1,30 @@
 {
-  "name": "claude-halo",
+  "name": "halo",
   "owner": {
     "name": "Pooya Milani",
     "url": "https://github.com/Pooyamilani"
   },
   "metadata": {
-    "description": "halo: a halo above your Claude Code prompt"
+    "description": "Halo: a modular workspace for Claude Code. Know your session. Manage your work."
   },
   "plugins": [
     {
-      "name": "halo",
-      "source": "./",
+      "name": "halo-usage",
+      "source": "./plugins/halo-usage",
       "description": "a halo above your prompt: glowing usage rings, running models with effort, and the date in Jalali or Gregorian.",
-      "version": "1.2.0"
+      "version": "1.3.0"
+    },
+    {
+      "name": "halo-desk",
+      "source": "./plugins/halo-desk",
+      "description": "a pane of what is actually open across your git repos, cross-checked against Jira and GitLab, with confirmation-gated cleanup.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "halo",
+      "source": "./plugins/halo-usage",
+      "description": "Deprecated alias of halo-usage, kept so installs made before Halo became a product keep updating. New installs: use halo-usage.",
+      "version": "1.3.0"
     }
   ]
 }
