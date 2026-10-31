@@ -1,0 +1,11 @@
+{
+  "fetchedAt": "2030-03-31T12:00:00Z",
+  "me": "Dana Example",
+  "jira": {
+    "ACME-12": { "status": "In Progress", "statusCategory": "indeterminate", "assignee": "Dana Example", "summary": "Fix checkout total" }
+  },
+  "mrs": [
+    { "project": "web", "sourceBranch": "ACME-12_fix-total", "iid": 42, "state": "opened", "target": "main", "updatedAt": "2030-03-29T09:00:00Z", "sha": "abc123", "webUrl": "https://git.example.com/team/web/-/merge_requests/42", "title": "ACME-12 Fix checkout total" }
+  ],
+  "sources": { "jira": { "ok": true }, "gitlab": { "ok": true } }
+}

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="halo: a halo above your prompt">
+  <defs>
+    <radialGradient id="bg" cx="28%" cy="20%" r="95%">
+      <stop offset="0" stop-color="#1c2438"/>
+      <stop offset=".55" stop-color="#10141d"/>
+      <stop offset="1" stop-color="#0b0d12"/>
+    </radialGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#4fd1b5" stop-opacity=".22"/>
+      <stop offset=".6" stop-color="#8f9bff" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#8f9bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" x2="1">
+      <stop offset="0" stop-color="#4fd1b5" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#4fd1b5" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#4fd1b5" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+
+  <rect width="1280" height="420" rx="28" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1278" height="418" rx="27" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+
+  <!-- the halo -->
+  <g transform="translate(300 210)">
+    <circle r="170" fill="url(#aura)"/>
+    <circle r="96" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="18"/>
+    <circle r="58" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="18"/>
+    <g filter="url(#glow)" opacity=".85">
+      <circle r="96" fill="none" stroke="#8f9bff" stroke-width="18" stroke-linecap="round" stroke-dasharray="380 603" transform="rotate(-90)"/>
+      <circle r="58" fill="none" stroke="#4fd1b5" stroke-width="18" stroke-linecap="round" stroke-dasharray="232 364" transform="rotate(-90)"/>
+    </g>
+    <circle r="96" fill="none" stroke="#8f9bff" stroke-width="18" stroke-linecap="round" stroke-dasharray="380 603" transform="rotate(-90)"/>
+    <circle r="58" fill="none" stroke="#4fd1b5" stroke-width="18" stroke-linecap="round" stroke-dasharray="232 364" transform="rotate(-90)"/>
+    <g>
+      <circle cx="0" cy="-132" r="10" fill="#e07a52"/>
+      <circle cx="114" cy="66" r="10" fill="#4fd1b5"/>
+      <circle cx="-114" cy="66" r="10" fill="#8f9bff"/>
+      <circle cx="0" cy="-132" r="18" fill="#e07a52" opacity=".25" filter="url(#glow)"/>
+      <circle cx="114" cy="66" r="18" fill="#4fd1b5" opacity=".25" filter="url(#glow)"/>
+      <circle cx="-114" cy="66" r="18" fill="#8f9bff" opacity=".25" filter="url(#glow)"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <g font-family="Inter, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+    <text x="540" y="186" fill="#f2f4f8" font-size="104" font-weight="600" letter-spacing="2">halo</text>
+    <text x="544" y="238" fill="#aab2c0" font-size="30" font-style="italic">a halo above your prompt</text>
+    <rect x="544" y="270" width="420" height="2" fill="url(#rim)"/>
+    <g font-size="20" fill="#8b93a1">
+      <circle cx="552" cy="314" r="6" fill="#4fd1b5"/><text x="566" y="321">usage rings</text>
+      <circle cx="702" cy="314" r="6" fill="#e07a52"/><text x="716" y="321">models + effort</text>
+      <circle cx="884" cy="314" r="6" fill="#8f9bff"/><text x="898" y="321">Jalali or Gregorian date</text>
+    </g>
+    <text x="544" y="372" fill="#5b6372" font-size="17">a mod for Claude Code</text>
+  </g>
+</svg>

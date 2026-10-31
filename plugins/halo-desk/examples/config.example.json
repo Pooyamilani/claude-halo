@@ -1,0 +1,23 @@
+{
+  "projects": [
+    {
+      "name": "web",
+      "path": "/home/me/code/web",
+      "bases": ["main"],
+      "gitlab": { "baseUrl": "https://git.example.com", "path": "team/web", "projectId": 12, "tokenEnv": "GITLAB_TOKEN" }
+    }
+  ],
+  "jira": {
+    "baseUrl": "https://jira.example.com",
+    "keyRegex": "[A-Z][A-Z0-9]+-\\d+",
+    "closedStatuses": ["Done", "Shipped"],
+    "holdStatuses": ["On Hold"],
+    "activeStatuses": ["In Progress"],
+    "tokenEnv": "JIRA_TOKEN"
+  },
+  "staleReviewDays": 7,
+  "idleDays": 21,
+  "noteGlobs": [".claude/plans/*.md"],
+  "waitingMarkers": ["on hold", "waiting for"],
+  "maxSnapshotAgeMinutes": 60
+}
