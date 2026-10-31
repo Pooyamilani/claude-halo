@@ -79,7 +79,7 @@ A terminal can't draw rings, so each limit gets a colored `◉` (5-hour) or `◎
 
 ## Install
 
-Halo Usage is one plugin of [Halo](../../README.md). It installs on its own, with or without Task Desk.
+Halo Usage is one plugin of [Halo](../../README.md). It installs on its own, with or without Halo Desk.
 
 At the prompt of a terminal session:
 

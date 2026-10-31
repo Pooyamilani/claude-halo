@@ -7,7 +7,7 @@ Halo is a monorepo of independent Claude Code plugins. Keep them independent.
 ```
 .claude-plugin/marketplace.json   the `halo` marketplace
 plugins/halo-usage/               usage bar
-plugins/halo-desk/           task desk
+plugins/halo-desk/               open-work pane
 docs/                             product docs
 ```
 
