@@ -1,0 +1,39 @@
+{
+  "name": "halo-desk",
+  "version": "0.1.0",
+  "description": "Halo Desk: a pane showing what is actually open across your git repos, cross-checked against Jira and GitLab, with confirmation-gated cleanup.",
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "keywords": [
+    "git",
+    "jira",
+    "gitlab",
+    "merge-requests",
+    "branches",
+    "cleanup"
+  ],
+  "userConfig": {
+    "dataDir": {
+      "type": "string",
+      "title": "Data directory",
+      "description": "Folder holding config.json and remote-snapshot.json. Empty means ~/.claude/halo-desk",
+      "default": ""
+    },
+    "autoOpen": {
+      "type": "string",
+      "title": "Open the pane at session start",
+      "options": [
+        "yes",
+        "no"
+      ],
+      "default": "no",
+      "description": "Open the Halo Desk pane and refresh when a session starts"
+    }
+  },
+  "author": {
+    "name": "Pooya Milani",
+    "url": "https://github.com/Pooyamilani"
+  },
+  "homepage": "https://github.com/Pooyamilani/claude-halo/tree/main/plugins/halo-desk",
+  "repository": "https://github.com/Pooyamilani/claude-halo"
+}
