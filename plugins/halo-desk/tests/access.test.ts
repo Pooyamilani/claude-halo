@@ -16,7 +16,9 @@ test('mcp mode names the servers per source and falls back to the browser', () =
   const prompt = ask({ ...base, access: { jira: 'mcp', gitlab: 'mcp' } })
   expect(prompt).toContain('mcp__jira__*')
   expect(prompt).toContain('mcp__gitlab-mcp__*')
-  expect(prompt).toContain('instead and say so')
+  expect(prompt).toContain('do NOT switch to the browser by yourself')
+  expect(prompt).toContain('AskUserQuestion')
+  expect(prompt).toContain('no source-branch filter')
 })
 
 test('sources are independent', () => {

@@ -6,7 +6,7 @@ Each plugin is versioned and released on its own. Entries say which plugin chang
 
 ### halo-desk 0.1.0
 - First version: a pane with local git, Jira and GitLab context, task classification, and confirmation-gated cleanup. Halo-branded.
-- New `access.jira` / `access.gitlab` settings (`browser` default, or `mcp`): the Remote button can have Claude read Jira and GitLab through MCP servers instead of a signed-in browser, falling back to the browser when an MCP is not connected.
+- New `access.jira` / `access.gitlab` settings (`browser` default, or `mcp`): the Remote button can have Claude read Jira and GitLab through MCP servers instead of a signed-in browser, asking for approval before falling back to the browser when an MCP is not connected.
 - Fix: a merged branch whose remote copy was deleted is no longer flagged as unpushed.
 
 ### halo-usage 1.3.0

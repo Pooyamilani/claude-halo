@@ -112,14 +112,19 @@ export function browserRefreshPrompt(args: {
   const gl = args.branches.map(b => `- ${b.project}: ${b.gitlab ? `${b.gitlab.baseUrl} path ${b.gitlab.path ?? '?'}${b.gitlab.projectId ? ` id ${b.gitlab.projectId}` : ''}` : 'no GitLab remote'}; branches: ${b.branches.join(', ') || '(none)'}`).join('\n')
 
   const mode = (source: 'jira' | 'gitlab'): Access => args.config.access?.[source] ?? 'browser'
+  const browserJira = `navigate the browser to <jira>/rest/api/2/myself once (same-origin), then fetch /rest/api/2/search?maxResults=50&fields=summary,status,assignee&jql=key in (...) for these keys: ${args.keys.join(', ') || '(none)'}. Record status.name, status.statusCategory.key, assignee.displayName, summary per key, and displayName from /myself as "me".`
+  const browserGitlab = `for each project below, on the GitLab origin fetch /api/v4/projects/<numeric id>/merge_requests?source_branch=<branch>&per_page=20 for every listed branch (use the numeric id; resolve it once via /api/v4/projects/<url-encoded path> if unknown). Cross-origin fetches are blocked: navigate the tab to the right origin first.`
+  // Never fall back to the browser on its own: the user approves each switch.
+  const gate = (name: string, browser: string) =>
+    `If ${name} is missing, times out, is not signed in or cannot do this lookup, do NOT switch to the browser by yourself: stop, say which MCP failed and why, and ask the user (AskUserQuestion) whether to use the browser for this source. On yes, ${browser} On no, set this source to { "ok": false, "error": "<why>" } and keep the rest.`
   const jiraStep =
     mode('jira') === 'mcp'
-      ? `1. Jira (${jira}) through the Jira MCP (tools named mcp__jira__*, load them with ToolSearch): search with JQL key in (...) for these keys: ${args.keys.join(', ') || '(none)'}, 50 at a time, and read the current user for "me". Record status.name, status.statusCategory.key, assignee.displayName and summary per key. If the Jira MCP is missing or fails to authenticate, do this step through the browser instead and say so.`
-      : `1. Jira (${jira}): navigate the browser to <jira>/rest/api/2/myself once (same-origin), then fetch /rest/api/2/search?maxResults=50&fields=summary,status,assignee&jql=key in (...) for these keys: ${args.keys.join(', ') || '(none)'}. Record status.name, status.statusCategory.key, assignee.displayName, summary per key, and displayName from /myself as "me".`
+      ? `1. Jira (${jira}) through the Jira MCP (tools named mcp__jira__*, load them with ToolSearch): search with JQL key in (...) for these keys: ${args.keys.join(', ') || '(none)'}, 50 at a time, and read the current user for "me". Record status.name, status.statusCategory.key, assignee.displayName and summary per key. ${gate('the Jira MCP', browserJira)}`
+      : `1. Jira (${jira}): ${browserJira}`
   const gitlabStep =
     mode('gitlab') === 'mcp'
-      ? `2. GitLab through the GitLab MCP (tools named mcp__gitlab-mcp__*, load them with ToolSearch; use the tool names it actually exposes): for each project below, list merge requests by source branch for every listed branch, using the numeric project id (resolve it once from the path if unknown). If the GitLab MCP is missing or not logged in, do this step through the browser instead and say so.`
-      : `2. GitLab: for each project below, on the GitLab origin fetch /api/v4/projects/<numeric id>/merge_requests?source_branch=<branch>&per_page=20 for every listed branch (use the numeric id; resolve it once via /api/v4/projects/<url-encoded path> if unknown). Cross-origin fetches are blocked: navigate the tab to the right origin first.`
+      ? `2. GitLab through the GitLab MCP (tools named mcp__gitlab-mcp__*, load them with ToolSearch; use the tool names it actually exposes). Its merge request list has no source-branch filter: for each project below list merge requests with state all (100 per page, follow the cursor until the listed branches are covered or the pages run out) and match each listed branch against the source branch yourself, using the numeric project id. Only if that cannot work (the list does not show the source branch), ${gate('the GitLab MCP', browserGitlab)}`
+      : `2. GitLab: ${browserGitlab}`
   const via = mode('jira') === 'mcp' || mode('gitlab') === 'mcp' ? 'the configured MCP servers and the signed-in browser' : 'the signed-in browser'
 
   return `Refresh the Halo Desk remote snapshot using ${via} (read-only, no tokens, no credentials).
