@@ -89,7 +89,8 @@ function classifyBranch({ b, key, project, settings, remote, notes, me, now, sta
   const verdict = verifyMerged({ tip: b.tip, isAncestor: b.isAncestor, cherryPlus: b.cherryPlus, contentPresent: b.contentPresent, mr })
   const kind = jira ? statusKind(jira, settings) : undefined
   const badges: Badge[] = []
-  const unpushed = !b.pushed ? b.ahead > 0 : b.unpushed > 0
+  // Merged work is already on the base: a deleted remote branch (MR source branch removed) is not "unpushed".
+  const unpushed = !verdict.merged && (!b.pushed ? b.ahead > 0 : b.unpushed > 0)
   if (unpushed) badges.push('unpushed')
 
   const item: Item = {

@@ -91,3 +91,10 @@ test('mainline branches are never work or deletion candidates, even when not thi
   const items = classify({ config, repos: [repo(branch('master', { isAncestor: true, ahead: 0 }), branch('release/1', { isAncestor: true, ahead: 0 }))], now: NOW })
   expect(items.map(i => i.branch)).toEqual(['release/1'])
 })
+
+test('merged MR with its remote branch deleted is not unpushed', async () => {
+  const b = branch('ACME-9_a', { pushed: false, ahead: 1, cherryPlus: 1 })
+  const i = one(b, snapshot({ 'ACME-9': { status: 'In Progress' } }, [mr(b.name, { state: 'merged', sha: b.tip })]))
+  expect(i.badges).not.toContain('unpushed')
+  expect(i.nextStep).not.toContain('Push')
+})
