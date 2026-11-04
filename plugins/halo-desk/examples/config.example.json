@@ -15,6 +15,7 @@
     "activeStatuses": ["In Progress"],
     "tokenEnv": "JIRA_TOKEN"
   },
+  "access": { "jira": "browser", "gitlab": "browser" },
   "staleReviewDays": 7,
   "idleDays": 21,
   "noteGlobs": [".claude/plans/*.md"],

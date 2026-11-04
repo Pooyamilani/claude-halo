@@ -70,12 +70,12 @@ In the desktop app: **+** next to the prompt box → **Plugins** → **Add marke
 
 - Claude Code with plugins enabled (developed and tested on 2.1.x, in the desktop app and in terminals).
 - Halo Usage draws above the prompt on the desktop app and in terminals. Halo Desk opens as a pane with `/halo-desk`.
-- Halo Desk needs `git`. Jira and GitLab data is optional and read-only.
+- Halo Desk needs `git`. Jira and GitLab data is optional and read-only, and can come from a token, a signed-in browser, or Jira / GitLab MCP servers (`access` setting).
 
 ## Permissions and safety
 
 - **Halo Usage** reads the usage and model data Claude Code already gives plugins. No network calls.
-- **Halo Desk** runs read-only `git` commands. It reads Jira and GitLab only through a snapshot file you control: a token you name by environment variable, a browser you are already signed in to, or your own script. Credentials are never stored.
+- **Halo Desk** runs read-only `git` commands. It reads Jira and GitLab only through a snapshot file you control: a token you name by environment variable, a browser you are already signed in to, Jira / GitLab MCP servers you have connected, or your own script. Credentials are never stored.
 - **Approvals.** In Halo Desk, fetching, refreshing remote data, deleting branches and dropping stashes each ask first (Approve or Cancel). The only destructive operations are deleting local branches and dropping stashes, and each needs merge evidence. Untracked files are never deleted.
 
 ## Existing Halo users

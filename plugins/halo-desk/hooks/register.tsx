@@ -130,7 +130,7 @@ async function refreshRemote($: any) {
 
   if (!jiraTokenEnv && !gitlabTokenEnv) {
     await $.prompt.submit({ text: browserRefreshPrompt({ config, keys, branches: targets.map(t => ({ project: t.project.name, branches: t.branches, gitlab: t.gitlab })), file }) })
-    await patch($, { armed: undefined, status: 'Asked Claude to refresh through the browser; press Refresh when it is done' })
+    await patch($, { armed: undefined, status: 'Asked Claude to refresh (browser or MCP, per config); press Refresh when it is done' })
 
     return
   }

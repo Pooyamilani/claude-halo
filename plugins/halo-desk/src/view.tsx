@@ -15,7 +15,7 @@ const MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">
 </svg>`
 const TIPS = {
   refresh: 'Re-reads local git (fetches origin, branches, stashes, changes) and reclassifies with the last saved Jira/GitLab data.',
-  remote: 'Pulls fresh Jira and GitLab data (tokens, or Claude through your signed-in browser), saves it, then refreshes.',
+  remote: 'Pulls fresh Jira and GitLab data (tokens, or Claude through your signed-in browser or an MCP server), saves it, then refreshes.',
   cleanup: 'Lists branches proven merged and stashes already in the base, with evidence. Deletes only after a second press.',
 }
 
@@ -147,7 +147,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const droppable = (c?.stashes ?? []).filter(s => s.action === 'drop')
   const WILL: Record<string, [string, string]> = {
     refresh: ['Fetch from remotes?', `Runs git fetch in ${v.repos.length} repo(s). Only remote-tracking branches change; nothing is deleted.`],
-    remote: ['Refresh Jira and GitLab data?', 'Fetches, then reads Jira and GitLab (or asks Claude to use your signed-in browser) and saves remote-snapshot.json. Read-only on Jira and GitLab.'],
+    remote: ['Refresh Jira and GitLab data?', 'Fetches, then reads Jira and GitLab (or asks Claude to use your signed-in browser or an MCP server) and saves remote-snapshot.json. Read-only on Jira and GitLab.'],
     branches: [`Delete ${doomed.length} local branch(es)?`, `${doomed.map(b => `${b.project}/${b.branch}`).join(', ')}. Each is re-checked against fresh git state first.`],
     stashes: [`Drop ${droppable.length} stash(es)?`, 'Each is re-checked first. Untracked files are never touched.'],
   }

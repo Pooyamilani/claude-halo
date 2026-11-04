@@ -50,6 +50,7 @@ Then add a project:
 | `jira.baseUrl`, `keyRegex` | Jira host; where the card key sits in a branch name (default `PROJ-123` style) |
 | `jira.closedStatuses` / `holdStatuses` / `activeStatuses` | Your status names. Left out, Jira's own status categories decide (done / in progress) |
 | `gitlab.projectId`, `tokenEnv` | Numeric project id (resolved from the remote when absent); env var holding a token |
+| `access.jira`, `access.gitlab` | `browser` (default) or `mcp`: how Remote reaches a source when no token is set |
 | `staleReviewDays`, `idleDays` | Thresholds for "chase the review" and "untouched for weeks" |
 | `noteGlobs`, `waitingMarkers` | Plan/notes files whose lines mark a card as waiting |
 | `maxSnapshotAgeMinutes` | Deleting on MR evidence needs remote data newer than this |
@@ -61,7 +62,7 @@ Settings can be set per project (`projects[].jira`, `projects[].gitlab`) to mix 
 A mod cannot read your browser's cookies, so the pane reads a **snapshot file**, `remote-snapshot.json` (format: `examples/remote-snapshot.example.json`). Anything can write it. The **Remote** button picks the first that applies:
 
 1. **Tokens**: set `tokenEnv` on Jira and/or GitLab to the *name* of an environment variable holding a token. The token is read when you press Remote and is never written anywhere.
-2. **Signed-in browser**: with no `tokenEnv`, Remote asks Claude to collect the data through a browser you are already signed in to, and write the snapshot. No tokens, no credentials stored.
+2. **Claude, through a browser or an MCP server**: with no `tokenEnv`, Remote asks Claude to collect the data and write the snapshot. `access.jira` / `access.gitlab` choose how, per source: `"browser"` (default; a browser you are already signed in to) or `"mcp"` (a Jira MCP such as `mcp-atlassian`, tools `mcp__jira__*`, and a GitLab MCP named `gitlab-mcp`, tools `mcp__gitlab-mcp__*`, connected in the session). If the MCP is missing or not signed in, Claude falls back to the browser for that source and says so. No tokens, no credentials stored by the mod.
 3. **Your own script or cron job** that writes the file.
 
 Expired sessions and failed sources show up in the pane; a card missing from the snapshot is never treated as done.

@@ -32,8 +32,13 @@ export type Project = {
   gitlab?: GitlabSettings
 }
 
+/** How the Remote button reaches a source when no token is set: the signed-in browser (default) or an MCP server. */
+export type Access = 'browser' | 'mcp'
+
 export type Config = {
   projects: Project[]
+  /** Per source; missing means "browser". "mcp" needs a Jira MCP (mcp__jira__*) / GitLab MCP (mcp__gitlab-mcp__*) connected in the session. */
+  access?: { jira?: Access; gitlab?: Access }
   /** Default for every project that has no jira of its own. */
   jira?: JiraSettings
   gitlab?: GitlabSettings

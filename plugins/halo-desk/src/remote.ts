@@ -1,5 +1,5 @@
 import { keyOf } from './config'
-import type { Config, JiraInfo, JiraSettings, LocalRepo, MrInfo, Project, RemoteSnapshot } from './types'
+import type { Access, Config, JiraInfo, JiraSettings, LocalRepo, MrInfo, Project, RemoteSnapshot } from './types'
 
 export type Fetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text: string }>
 
@@ -98,8 +98,9 @@ export function wantedKeys(config: Config, repos: LocalRepo[], extra: string[] =
 }
 
 /**
- * The prompt that asks Claude to build remote-snapshot.json through a browser the user is already
- * signed in to. The mod never sees cookies; the snapshot file is the whole contract.
+ * The prompt that asks Claude to build remote-snapshot.json, per source through a browser the user is
+ * already signed in to (default) or through an MCP server (`config.access`). The mod never sees cookies
+ * or tokens; the snapshot file is the whole contract.
  */
 export function browserRefreshPrompt(args: {
   config: Config
@@ -110,10 +111,21 @@ export function browserRefreshPrompt(args: {
   const jira = args.config.jira?.baseUrl ?? '(per-project jira.baseUrl in config.json)'
   const gl = args.branches.map(b => `- ${b.project}: ${b.gitlab ? `${b.gitlab.baseUrl} path ${b.gitlab.path ?? '?'}${b.gitlab.projectId ? ` id ${b.gitlab.projectId}` : ''}` : 'no GitLab remote'}; branches: ${b.branches.join(', ') || '(none)'}`).join('\n')
 
-  return `Refresh the Halo Desk remote snapshot using the signed-in browser (read-only, no tokens, no credentials).
+  const mode = (source: 'jira' | 'gitlab'): Access => args.config.access?.[source] ?? 'browser'
+  const jiraStep =
+    mode('jira') === 'mcp'
+      ? `1. Jira (${jira}) through the Jira MCP (tools named mcp__jira__*, load them with ToolSearch): search with JQL key in (...) for these keys: ${args.keys.join(', ') || '(none)'}, 50 at a time, and read the current user for "me". Record status.name, status.statusCategory.key, assignee.displayName and summary per key. If the Jira MCP is missing or fails to authenticate, do this step through the browser instead and say so.`
+      : `1. Jira (${jira}): navigate the browser to <jira>/rest/api/2/myself once (same-origin), then fetch /rest/api/2/search?maxResults=50&fields=summary,status,assignee&jql=key in (...) for these keys: ${args.keys.join(', ') || '(none)'}. Record status.name, status.statusCategory.key, assignee.displayName, summary per key, and displayName from /myself as "me".`
+  const gitlabStep =
+    mode('gitlab') === 'mcp'
+      ? `2. GitLab through the GitLab MCP (tools named mcp__gitlab-mcp__*, load them with ToolSearch; use the tool names it actually exposes): for each project below, list merge requests by source branch for every listed branch, using the numeric project id (resolve it once from the path if unknown). If the GitLab MCP is missing or not logged in, do this step through the browser instead and say so.`
+      : `2. GitLab: for each project below, on the GitLab origin fetch /api/v4/projects/<numeric id>/merge_requests?source_branch=<branch>&per_page=20 for every listed branch (use the numeric id; resolve it once via /api/v4/projects/<url-encoded path> if unknown). Cross-origin fetches are blocked: navigate the tab to the right origin first.`
+  const via = mode('jira') === 'mcp' || mode('gitlab') === 'mcp' ? 'the configured MCP servers and the signed-in browser' : 'the signed-in browser'
 
-1. Jira (${jira}): navigate the browser to <jira>/rest/api/2/myself once (same-origin), then fetch /rest/api/2/search?maxResults=50&fields=summary,status,assignee&jql=key in (...) for these keys: ${args.keys.join(', ') || '(none)'}. Record status.name, status.statusCategory.key, assignee.displayName, summary per key, and displayName from /myself as "me".
-2. GitLab: for each project below, on the GitLab origin fetch /api/v4/projects/<numeric id>/merge_requests?source_branch=<branch>&per_page=20 for every listed branch (use the numeric id; resolve it once via /api/v4/projects/<url-encoded path> if unknown). Cross-origin fetches are blocked: navigate the tab to the right origin first.
+  return `Refresh the Halo Desk remote snapshot using ${via} (read-only, no tokens, no credentials).
+
+${jiraStep}
+${gitlabStep}
 ${gl}
 3. Write ${args.file} as JSON: { "fetchedAt": <ISO now>, "me": string, "jira": { "KEY": { "status", "statusCategory": "new|indeterminate|done", "assignee", "summary" } }, "mrs": [ { "project", "sourceBranch", "iid", "state": "opened|merged|closed", "target", "updatedAt", "sha", "webUrl", "title" } ], "sources": { "jira": { "ok": true }, "gitlab": { "ok": true } } }. If a source fails (401, redirect to login), set that source's { "ok": false, "error": "..." } and keep the rest. Never guess a status that you could not read.
 Then reply with one line: how many cards and MRs were written, and any source that failed.`

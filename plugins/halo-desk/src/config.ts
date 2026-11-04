@@ -28,6 +28,10 @@ export function parseConfig(text: string): { config: Config; problems: string[] 
       problems.push(`keyRegex #${i} is not a valid regular expression`)
     }
   }
+  for (const source of ['jira', 'gitlab'] as const) {
+    const mode = raw?.access?.[source]
+    if (mode !== undefined && mode !== 'browser' && mode !== 'mcp') problems.push(`access.${source} must be "browser" or "mcp"`)
+  }
   return { config: { ...raw, projects }, problems }
 }
 
