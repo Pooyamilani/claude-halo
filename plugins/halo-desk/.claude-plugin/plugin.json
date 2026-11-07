@@ -1,6 +1,6 @@
 {
   "name": "halo-desk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Halo Desk: a pane showing what is actually open across your git repos, cross-checked against Jira and GitLab, with confirmation-gated cleanup.",
   "license": "MIT",
   "types": "./types/index.d.ts",

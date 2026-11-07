@@ -4,16 +4,16 @@ Part of [Halo](../../README.md), a modular workspace for Claude Code. A Claude C
 
 <p align="center">
   <img src="docs/halo-desk-main.png" alt="Halo Desk pane" width="420">
-  <img src="docs/halo-desk-approve.png" alt="Halo Desk asking for approval before refreshing remote data" width="420">
+  <img src="docs/halo-desk-approve.png" alt="Halo Desk asking for approval before syncing" width="420">
 </p>
-<p align="center"><sub>Rendered from the pane's real element tree with made-up sample data (a fictional "ACME" project). Left: the pane. Right: the approval card raised by pressing Remote.</sub></p>
+<p align="center"><sub>Rendered from the pane's real element tree with made-up sample data (a fictional "ACME" project). Left: the pane. Right: the approval card raised by pressing Sync.</sub></p>
 
 ## What you get
 
-- **Needs action now**: unpushed branches, MRs to review (stale ones flagged), pushed work with no MR, cards that look abandoned.
-- **Waiting on something**: on-hold cards, plan notes that say "waiting for…", cards owned by someone else.
-- **Tooling, no card**: branches without a card key.
-- **Local state**: branches, stashes, changed and untracked files per repo.
+- **The rings**: the Halo mark is a live summary. Outer teal ring: needs action. Middle violet: waiting. Inner coral: cleanup. The ring of the tab you are on glows and shivers, so you can see the pane is alive.
+- **Needs action**: grouped by what to do: Review (stale MRs flagged), Push, Open an MR, and branches with no Jira card. Each row has the Jira title, the card as a link, Copy branch and Open MR.
+- **Waiting**: on-hold cards, plan notes that say "waiting for…", cards owned by someone else.
+- **Local details**: branches, stashes, changed and untracked files per repo.
 - **Cleanup review**: branches proven merged and stashes already in the base, each with the evidence. Nothing is deleted until you approve it. Untracked files are listed, never deleted.
 
 It works with git alone. Jira and GitLab data add the rest.

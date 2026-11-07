@@ -28,17 +28,17 @@ A quiet bar pinned above your prompt. One glance shows how much of your 5-hour a
 
 ## Halo Desk: manage your work
 
-A pane that answers "what is actually open?". It reads your local git repos, cross-checks them against Jira and GitLab, and sorts every branch into **needs action**, **waiting**, or **tooling**, with the next step spelled out. A cleanup review lists branches proven merged and stashes already in the base, each with its evidence.
+A pane that answers "what is actually open?". It reads your local git repos, cross-checks them against Jira and GitLab, and sorts every branch into **needs action** (grouped as Review, Push, Open an MR, and branches with no card) or **waiting**, with the next step spelled out. A cleanup review lists branches proven merged and stashes already in the base, each with its evidence.
 
 Nothing happens behind your back. Every action that fetches, writes or deletes shows an approval card first.
 
 <table>
   <tr>
-    <td width="50%"><img src="plugins/halo-desk/docs/halo-desk-main.png" alt="Halo Desk pane: counts, cards for each branch with Jira and merge request links, local state"></td>
-    <td width="50%"><img src="plugins/halo-desk/docs/halo-desk-cleanup.png" alt="Halo Desk cleanup review with an approval card asking before deleting three branches"></td>
+    <td width="50%"><img src="plugins/halo-desk/docs/halo-desk-main.png" alt="Halo Desk pane: the Halo rings as a live summary, two tabs, a queue grouped by what to do, with Jira and merge request links"></td>
+    <td width="50%"><img src="plugins/halo-desk/docs/halo-desk-cleanup.png" alt="Halo Desk cleanup review with an approval card asking before deleting two branches"></td>
   </tr>
   <tr>
-    <td align="center"><sub>The pane: what needs you, what is waiting</sub></td>
+    <td align="center"><sub>The pane: the rings are the summary, the queue is grouped by what to do</sub></td>
     <td align="center"><sub>Cleanup review, with evidence and an approval card</sub></td>
   </tr>
 </table>

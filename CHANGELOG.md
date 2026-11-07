@@ -4,6 +4,12 @@ Each plugin is versioned and released on its own. Entries say which plugin chang
 
 ## Unreleased
 
+### halo-desk 0.2.0
+- New pane design: the Halo rings are a live summary (the selected tab's ring glows and shivers), two tabs (Needs action, Waiting), and a queue grouped by what to do, with the Jira title, a link to the card, Copy branch and Open MR on every row.
+- One **Sync** button (git fetch, then Jira and GitLab) behind a single approval card; *Git only* is offered inside it. A cleanup banner appears only when there is something to clean up; Local details is a disclosure at the bottom.
+- Fix: a card whose Jira status is closed and whose MR is merged is never shown as "push the branch", even when the local tip cannot be matched to the merged one.
+- Removed from the pane: the usage card (use Halo Usage) and the Show/Hide section cards.
+
 ### halo-desk 0.1.0
 - First version: a pane with local git, Jira and GitLab context, task classification, and confirmation-gated cleanup. Halo-branded.
 - New `access.jira` / `access.gitlab` settings (`browser` default, or `mcp`): the Remote button can have Claude read Jira and GitLab through MCP servers instead of a signed-in browser, asking for approval before falling back to the browser when an MCP is not connected.
