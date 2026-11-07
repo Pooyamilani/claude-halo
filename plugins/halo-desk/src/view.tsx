@@ -113,7 +113,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const label = i.key ?? i.branch ?? '?'
 
     return (
-      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column">
+      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column" marginBottom={1}>
         <Box flexDirection="row" gap={1} alignItems="center" justifyContent="space-between">
           <Box flexDirection="row" gap={1} alignItems="center" flexShrink={1}>
             {glyph('dot', accent, 12, accent)}
@@ -141,17 +141,19 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   // The list is capped so a long queue stays a glance; "Show more" opens the rest.
   const CAP = 8
   const showAll = v.collapsed.more === false
-  const label = (key: string, text: string) => (
-    <Text key={`g-${key}`} {...bold} color={hex('subtle')}>
-      {text}
-    </Text>
+  const label = (key: string, text: string, first = false) => (
+    <Box key={`g-${key}`} marginTop={first ? 0 : 1} marginBottom={1}>
+      <Text {...bold} color={hex('subtle')}>
+        {text}
+      </Text>
+    </Box>
   )
   const queue = (): any[] => {
     const out: any[] = []
     let shown = 0
     const take = (items: Item[]) => items.filter(() => showAll || shown++ < CAP)
     if (tab === 'waiting') {
-      out.push(label('waiting', `WAITING ON SOMEONE · ${g.waiting.length}`))
+      out.push(label('waiting', `WAITING ON SOMEONE · ${g.waiting.length}`, true))
       take(g.waiting).forEach(i => out.push(row(i)))
 
       return out
@@ -159,7 +161,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     for (const name of STEP_GROUPS) {
       const items = take(todo.filter(i => stepGroup(i) === name))
       if (items.length === 0) continue
-      out.push(label(name, `${name.toUpperCase()} · ${todo.filter(i => stepGroup(i) === name).length}`))
+      out.push(label(name, `${name.toUpperCase()} · ${todo.filter(i => stepGroup(i) === name).length}`, out.length === 0))
       items.forEach(i => out.push(row(i)))
     }
 
@@ -226,7 +228,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         {seg('action', 'Needs action', todo.length)}
         {seg('waiting', 'Waiting', g.waiting.length)}
       </Box>
-      <Box flexDirection="column" gap={1} paddingX={2} {...glass(tab === 'action' && !empty ? 'success' : 'inactive')}>
+      <Box flexDirection="column" paddingX={2} paddingY={1} {...glass(tab === 'action' && !empty ? 'success' : 'inactive')}>
         {empty ? (
           <Text color={hex(tab === 'action' ? 'success' : 'subtle')}>{v.snapshotAge === undefined && !v.items.length ? 'Nothing yet: press Sync.' : tab === 'action' ? '✓ Nothing needs you right now' : 'Nothing is waiting'}</Text>
         ) : (
@@ -235,7 +237,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         {!empty && total > CAP && ghost('more', showAll ? 'Show fewer' : `Show ${total - CAP} more`, () => void act.toggle('more'))}
       </Box>
       {!c && cleanable > 0 && (
-        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} paddingX={2} {...glass('suggestion')}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} paddingX={2} paddingY={1} {...glass('suggestion')}>
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph('sparkles', 'suggestion', 16, 'Cleanup')}
             <Text>{`${cleanable} branch(es) ready to clean up`}</Text>
