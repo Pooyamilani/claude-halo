@@ -45,7 +45,7 @@ test('an armed action raises an approval card with Approve and Cancel', async ($
 test('waiting reasons are plain, clamped, and not repeated from the status', async ($, on) => {
   const held = { ...item, key: 'ACME-9', bucket: 'waiting', nextStep: 'Wait', waitingOn: '**ON HOLD (2026-10-17):** ' + 'user said wait '.repeat(12), badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
   const same = { ...item, key: 'ACME-10', bucket: 'waiting', nextStep: 'Wait', waitingOn: 'On Hold', badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [held, same] }, maxAge: 60, cleanable: 0, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [held, same], collapsed: { waiting: false } }, maxAge: 60, cleanable: 0, act }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Text', text: /\*\*/ })).toBeFalsy()
   expect(await ui.find({ type: 'Text', text: /^Wait: ON HOLD \(2026-10-17\): user said wait.*…$/ })).toBeTruthy()
@@ -62,4 +62,14 @@ test('the status chips carry their counts and are pressable', async ($, on) => {
     expect(await ui.find({ type: 'Button', text: /^. Cleanup \d+$/ })).toBeTruthy()
     await ui.unmount()
   }
+})
+
+test('by default Next action is open, the other sections show a one-line summary, and All is the lit segment', async ($, on) => {
+  const w = { ...item, key: 'ACME-7', bucket: 'waiting', waitingOn: 'Someone', badges: [], jira: { status: 'Open' }, mr: undefined }
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [item, w], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
+  const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 24, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
+  expect(await ui.find({ type: 'Text', text: /^ACME-7$/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /^Someone$/ })).toBeFalsy()
+  expect(await ui.find({ type: 'Button', text: /^Show$/ })).toBeTruthy()
+  await ui.unmount()
 })

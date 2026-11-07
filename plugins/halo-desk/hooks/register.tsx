@@ -23,7 +23,7 @@ const view = atom({ plugin: 'halo-desk', key: 'view' } as const, {
   sources: [],
   busy: false,
   status: 'Press Refresh',
-  collapsed: {},
+  collapsed: { waiting: true, tooling: true, local: true },
 } as ViewState)
 
 // Set by register on every (re)load; the helpers below are top level so `$` can be passed to them.
@@ -34,7 +34,7 @@ const patch = ($: any, p: Partial<View>) => update($, view, v => ({ ...v, ...p }
 const setCollapsed = ($: any, next: (s: ViewState) => Record<string, boolean>) =>
   update($, view, s => {
     const collapsed = next(s)
-    void $.store.set('collapsed', collapsed).catch(() => {})
+    void $.store.set('sections', collapsed).catch(() => {})
 
     return { ...s, collapsed }
   })
@@ -254,15 +254,18 @@ async function drawBody($: any, e: any) {
     maxAge,
     cleanable: branchCandidates(v.items, v.snapshotAge, maxAge).length,
     act: {
-      toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: !s.collapsed[name] })),
+      toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: !(s.collapsed[name] ?? name !== 'action') })),
       // Show only this section; if it already is the only one open, show them all again.
+      // All = the default view (Next action open, the rest closed). A filter opens one section; pressing it again goes back.
       focus: name =>
         setCollapsed($, s => {
           const all = ['action', 'waiting', 'tooling', 'local']
-          if (name === 'all') return Object.fromEntries(all.map(n => [n, false]))
-          const alone = all.every(n => (n === name ? !s.collapsed[n] : !!s.collapsed[n]))
+          const closed = (n: string) => s.collapsed[n] ?? n !== 'action'
+          const standard = Object.fromEntries(all.map(n => [n, n !== 'action']))
+          if (name === 'all') return standard
+          const alone = all.every(n => (n === name ? !closed(n) : closed(n)))
 
-          return Object.fromEntries(all.map(n => [n, alone ? false : n !== name]))
+          return alone ? (name === 'action' ? Object.fromEntries(all.map(n => [n, false])) : standard) : Object.fromEntries(all.map(n => [n, n !== name]))
         }),
       refresh: () => refresh($),
       remote: () => refreshRemote($),
@@ -286,7 +289,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'halo-desk', description: 'Open the Halo Desk pane (read-only until you confirm a button). Subcommands: add <path> [--jira URL] [--base BRANCH], config' })
-    const saved = await $.store.get('collapsed').catch(() => undefined)
+    const saved = await $.store.get('sections').catch(() => undefined)
     if (saved && typeof saved === 'object') await patch($, { collapsed: saved as Record<string, boolean> })
     if (OPTS?.autoOpen === 'yes') {
       await $.ui.open({ id: PANE, title: 'Halo Desk' })
