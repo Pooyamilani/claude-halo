@@ -20,7 +20,7 @@ It works with git alone. Jira and GitLab data add the rest.
 
 ## Approvals
 
-Halo Desk never acts on its own. Opening the pane only reads local git. Pressing **Refresh** (git fetch), **Remote** (Jira and GitLab data), **Delete branches** or **Drop stashes** raises an approval card that says what will run, with **Approve** and **Cancel**. Delete and drop re-check every item against fresh git state first.
+Halo Desk never acts on its own. Opening the pane only reads local git. Pressing **Sync** (git fetch, then Jira and GitLab data; the approval card also offers *Git only*), **Delete branches** or **Drop stashes** raises an approval card that says what will run, with **Approve** and **Cancel**. Delete and drop re-check every item against fresh git state first.
 
 <p align="center"><img src="docs/halo-desk-cleanup.png" alt="Cleanup review with an approval card" width="420"></p>
 

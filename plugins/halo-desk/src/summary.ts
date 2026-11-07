@@ -29,3 +29,16 @@ export function describeItem(i: Item): { title: string; badges: string[]; detail
 
   return { title: `${i.key ?? i.branch ?? '?'} · ${i.project}`, badges: i.badges.map(b => BADGE[b] ?? b), detail }
 }
+
+/** The Needs action list is grouped by what to do, in this order. */
+export const STEP_GROUPS = ['Review', 'Push', 'Open an MR', 'Other', 'No Jira card'] as const
+export type StepGroup = (typeof STEP_GROUPS)[number]
+
+export function stepGroup(i: Item): StepGroup {
+  if (/^Push/.test(i.nextStep)) return 'Push'
+  if (/^(Review|Chase)/.test(i.nextStep)) return 'Review'
+  if (/^Open an MR/.test(i.nextStep)) return 'Open an MR'
+  if (i.bucket === 'tooling') return 'No Jira card'
+
+  return 'Other'
+}

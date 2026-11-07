@@ -1,4 +1,4 @@
-import { describeItem, group } from './summary'
+import { describeItem, group, STEP_GROUPS, stepGroup } from './summary'
 import type { Item } from './types'
 
 const KIND_COLOR: Record<string, string> = { unpushed: 'error', 'review-stale': 'warning', 'jira-mismatch': 'warning', 'on-hold': 'inactive', merged: 'merged', unverified: 'inactive' }
@@ -6,13 +6,6 @@ const KIND_COLOR: Record<string, string> = { unpushed: 'error', 'review-stale': 
 const HALO: Record<string, string> = { error: '#f0645c', warning: '#f2b84b', success: '#4fd1b5', suggestion: '#8f9bff', merged: '#e07a52', inactive: '#8b93a1', subtle: '#8b93a1' }
 const hex = (c: string) => HALO[c] ?? c
 const alpha = (a: number) => Math.round(a * 255).toString(16).padStart(2, '0')
-const MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">
-  <circle cx="23" cy="23" r="15" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>
-  <circle cx="23" cy="23" r="9" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>
-  <circle cx="23" cy="23" r="15" fill="none" stroke="#8f9bff" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="62 94.25" transform="rotate(-90 23 23)"/>
-  <circle cx="23" cy="23" r="9" fill="none" stroke="#4fd1b5" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="38 56.55" transform="rotate(-90 23 23)"/>
-  <circle cx="23" cy="2.5" r="2" fill="#e07a52"/><circle cx="40.75" cy="33.25" r="2" fill="#4fd1b5"/><circle cx="5.25" cy="33.25" r="2" fill="#8f9bff"/>
-</svg>`
 /** Small line icons (24x24 grid), tinted by the caller. Decorative: the label beside each says what it is. */
 const icon = (paths: string, color: string, fill = 'none') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`
@@ -37,19 +30,6 @@ const rings = (counts: [number, number, number]) => {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(19, counts[0], HALO.error)}${arc(13, counts[1], HALO.warning)}${arc(7, counts[2], HALO.suggestion)}</svg>`
 }
-/** A thin progress bar: a quiet track and a rounded fill. */
-const bar = (pct: number, color: string, w = 160) => {
-  const fill = Math.max(0, Math.min(100, pct)) * (w / 100)
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 8"><rect width="${w}" height="8" rx="4" fill="#ffffff" fill-opacity=".14"/><rect width="${Math.max(fill, 8)}" height="8" rx="4" fill="${color}"/></svg>`
-}
-const TIPS = {
-  refresh: 'Re-reads local git (fetches origin, branches, stashes, changes) and reclassifies with the last saved Jira/GitLab data.',
-  remote: 'Pulls fresh Jira and GitLab data (tokens, or Claude through your signed-in browser or an MCP server), saves it, then refreshes.',
-  cleanup: 'Lists branches proven merged and stashes already in the base, with evidence. Deletes only after a second press.',
-}
-
-export type Usage = { pct: number; left: string }
 
 export type Actions = {
   toggle: (name: string) => unknown
@@ -66,8 +46,8 @@ export type Actions = {
 }
 
 /** Pure drawing: the element table, the surface, the data and the handlers in; a tree out. */
-export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions; usage?: Usage; hover?: boolean }) {
-  const { E, rich, v, maxAge, cleanable, act, usage } = args
+export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions }) {
+  const { E, rich, v, maxAge, cleanable, act } = args
   const { Box, Text, Button, Link, Svg } = E
   const bold: any = { bold: true }
   const tint = (c: string, a: number): any => (rich ? { backgroundColor: `${hex(c)}${alpha(a)}` } : {})
@@ -86,35 +66,26 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       <Text color={hex(color)}>{`[${label}]`}</Text>
     )
 
-  // Small actions (Hide, Copy branch) are plain buttons, for the same reason.
   const ghost = (key: string, label: string, onPress: () => void) => <Button key={key} plain label={label} onPress={onPress} />
   const failed = v.sources.filter(s => !s.ok)
   const age = v.snapshotAge
+  const ago = (m: number) => (m >= 2880 ? `${Math.floor(m / 1440)}d` : m >= 120 ? `${Math.floor(m / 60)}h` : `${m}m`)
+  const stale = age !== undefined && age > maxAge
   const sync = v.busy
     ? pill('● Working', 'suggestion')
     : failed.length
       ? pill('● Source error', 'error')
       : age === undefined
         ? pill('○ Local only', 'inactive')
-        : age > (maxAge)
-          ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
-          : pill(`● Synced: ${age}m`, 'success')
+        : stale
+          ? pill(`◷ Stale ${ago(age)}`, 'warning')
+          : pill(`● Synced ${ago(age)}`, 'success')
 
-  // Three tabs: All (the sections, each open or closed as saved), Needs action, Waiting. A tab shows its one section, open.
-  const tab: string = v.tab ?? 'all'
-  const collapsedOf = (name: string) => (tab !== 'all' ? false : (v.collapsed[name] ?? name !== 'action'))
-  const shows = (name: string) => tab === 'all' || tab === name
-  const HOT: Record<string, string> = { all: '1', action: '2', waiting: '3' }
-  // A Button holds one plain string, so the ring character is part of the label.
-  const seg = (name: string, label: string, count: number) => (
-    <Button key={`seg-${name}`} hotkey={HOT[name]} variant={tab === name ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={() => void act.focus(name)} />
-  )
-  const filters = (
-    <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
-      {seg('all', 'All', g.action.length + g.waiting.length)}
-      {seg('action', 'Needs action', g.action.length)}
-      {seg('waiting', 'Waiting', g.waiting.length)}
-    </Box>
+  // Two tabs. Needs action holds the cards' tasks and the branches without a card: both need the user.
+  const tab: 'action' | 'waiting' = v.tab === 'waiting' ? 'waiting' : 'action'
+  const todo = [...g.action, ...g.tooling]
+  const seg = (name: 'action' | 'waiting', label: string, count: number) => (
+    <Button key={`seg-${name}`} variant={tab === name ? 'primary' : undefined} label={`${count ? '● ' : '○ '}${label} ${count}`} onPress={() => void act.focus(name)} />
   )
 
   const accentOf = (i: Item) =>
@@ -127,41 +98,39 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain
   }
 
-  // A row: the Jira title with Copy at the right, then the status, what to do, and the links. The first Next action is the hero.
+  // A row is two lines. Line one: the key (a link to the card), the Jira title and Copy. Line two: the state and Open MR.
+  // The key and the title are separate runs so a right-to-left title cannot reorder the key.
   const row = (i: Item) => {
     const d = describeItem(i)
     const accent = accentOf(i)
     const badgeLabels = d.badges.map(b => b.toLowerCase())
     // "On Hold" as a badge, a status and a reason says one thing three times: keep the first.
     const status = i.jira?.status && !badgeLabels.includes(i.jira.status.toLowerCase()) ? i.jira.status : undefined
-    const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn, 70) : undefined
-    const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
-    const title = i.jira?.summary ? tidy(i.jira.summary, 80) : (i.branch ?? i.nextStep)
+    const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn, 60) : undefined
+    const mr = i.mr ? `MR !${i.mr.iid}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
+    const title = i.jira?.summary ? tidy(i.jira.summary, 80) : i.key && i.branch ? i.branch : ''
+    const state = [reason ? `${i.nextStep}: ${reason}` : i.nextStep, mr].filter(Boolean).join(' · ')
+    const label = i.key ?? i.branch ?? '?'
 
     return (
       <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column">
         <Box flexDirection="row" gap={1} alignItems="center" justifyContent="space-between">
           <Box flexDirection="row" gap={1} alignItems="center" flexShrink={1}>
             {glyph('dot', accent, 12, accent)}
-            <Text wrap="truncate-end">
-              <Text {...bold}>{i.key ?? i.branch}</Text>
-              {`  ${title}`}
-            </Text>
+            <Text {...bold}>{i.jiraUrl ? <Link href={i.jiraUrl}>{label}</Link> : label}</Text>
+            {title && <Text wrap="truncate-end">{title}</Text>}
           </Box>
           {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
         </Box>
-        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" paddingLeft={3}>
-          {status && pill(status, accent)}
-          {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
-          <Text color={hex('subtle')}>{[reason ? `${i.nextStep}: ${reason}` : i.nextStep, mr].filter(Boolean).join(' · ')}</Text>
-          {i.jiraUrl && (
-            <Text>
-              <Link href={i.jiraUrl}>Jira</Link>
-            </Text>
-          )}
+        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" justifyContent="space-between" paddingLeft={3}>
+          <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
+            {status && pill(status, accent)}
+            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+            <Text color={hex('subtle')}>{state}</Text>
+          </Box>
           {i.mr?.webUrl && (
             <Text>
-              <Link href={i.mr.webUrl}>Merge request</Link>
+              <Link href={i.mr.webUrl}>Open MR</Link>
             </Text>
           )}
         </Box>
@@ -169,52 +138,44 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     )
   }
 
-  // Every section shares one header: rule, icon, title, count, Show/Hide; collapsed, a one-line summary instead of the entries.
-  const head = (name: string, label: string, color: string, mark: keyof typeof ICONS, count: string | undefined, right: any) => (
-    <Box key={`head-${name}`} flexDirection="row" justifyContent="space-between" alignItems="center">
-      <Box flexDirection="row" gap={1} alignItems="center">
-        {glyph(mark, color, 16, label)}
-        <Text {...bold}>{label}</Text>
-        {count && <Text color={hex('subtle')}>{count}</Text>}
-      </Box>
-      {right}
-    </Box>
+  // The list is capped so a long queue stays a glance; "Show more" opens the rest.
+  const CAP = 8
+  const showAll = v.collapsed.more === false
+  const label = (key: string, text: string) => (
+    <Text key={`g-${key}`} {...bold} color={hex('subtle')}>
+      {text}
+    </Text>
   )
-  const frame = (name: string, header: any, body: any, summary: string, color = 'inactive') => (
-    <Box key={`section-${name}`} flexDirection="column" gap={1} paddingX={2} {...glass(color)}>
-      {header}
-      {collapsedOf(name) ? <Text color={hex('subtle')}>{summary}</Text> : body}
-    </Box>
-  )
-  const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS) =>
-    items.length === 0 || !shows(name)
-      ? null
-      : frame(
-          name,
-          head(name, label, color, mark, String(items.length), tab === 'all' ? ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name)) : undefined),
-          <Box flexDirection="column" gap={1}>
-            {name === 'action' ? (
-              <Box flexDirection="column" paddingX={1} {...glass('success')} {...tint('success', 0.06)}>
-                {row(items[0])}
-              </Box>
-            ) : (
-              row(items[0])
-            )}
-            {items.slice(1).map(row)}
-          </Box>,
-          `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
-          name === 'action' ? 'success' : 'inactive',
-        )
+  const queue = (): any[] => {
+    const out: any[] = []
+    let shown = 0
+    const take = (items: Item[]) => items.filter(() => showAll || shown++ < CAP)
+    if (tab === 'waiting') {
+      out.push(label('waiting', `WAITING ON SOMEONE · ${g.waiting.length}`))
+      take(g.waiting).forEach(i => out.push(row(i)))
 
-  const tipped = (name: string, label: string, onPress: () => void, variant?: 'primary') => <Button key={name} label={label} variant={variant} onPress={onPress} />
+      return out
+    }
+    for (const name of STEP_GROUPS) {
+      const items = take(todo.filter(i => stepGroup(i) === name))
+      if (items.length === 0) continue
+      out.push(label(name, `${name.toUpperCase()} · ${todo.filter(i => stepGroup(i) === name).length}`))
+      items.forEach(i => out.push(row(i)))
+    }
+
+    return out
+  }
+  const total = tab === 'waiting' ? g.waiting.length : todo.length
+  const empty = total === 0
 
   const c = v.cleanup
 
   // The approval card: says what will run, then Approve or Cancel. Pressing the same action button again also approves.
-  const run: Record<string, () => Promise<void>> = { refresh: async () => void act.refresh(), remote: async () => void act.remote(), branches: act.deleteBranches, stashes: act.dropStashes }
+  const run: Record<string, () => Promise<void>> = { refresh: async () => void act.refresh(), remote: async () => void act.remote(), sync: async () => void act.remote(), branches: act.deleteBranches, stashes: act.dropStashes }
   const doomed = (c?.branches ?? []).filter(b => b.action === 'delete')
   const droppable = (c?.stashes ?? []).filter(s => s.action === 'drop')
   const WILL: Record<string, [string, string]> = {
+    sync: ['Sync Git, Jira and GitLab?', `Fetches ${v.repos.length} repo(s), then reads Jira and GitLab (or asks Claude to use your signed-in browser or an MCP server) and saves remote-snapshot.json. Read-only; nothing is deleted.`],
     refresh: ['Fetch from remotes?', `Runs git fetch in ${v.repos.length} repo(s). Only remote-tracking branches change; nothing is deleted.`],
     remote: ['Refresh Jira and GitLab data?', 'Fetches, then reads Jira and GitLab (or asks Claude to use your signed-in browser or an MCP server) and saves remote-snapshot.json. Read-only on Jira and GitLab.'],
     branches: [`Delete ${doomed.length} local branch(es)?`, `${doomed.map(b => `${b.project}/${b.branch}`).join(', ')}. Each is re-checked against fresh git state first.`],
@@ -229,6 +190,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         <Text color={hex('subtle')}>{WILL[what][1]}</Text>
         <Box flexDirection="row" gap={1}>
           <Button key="approve" label="Approve" variant="primary" onPress={() => void act.arm(what, run[what])} />
+          {what === 'sync' && <Button key="git-only" label="Git only" onPress={() => void act.refresh()} />}
           <Button key="cancel" plain label="Cancel" onPress={() => void act.cancel()} />
         </Box>
       </Box>
@@ -236,9 +198,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   return (
     <Box flexDirection="column" gap={1} padding={1}>
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
         <Box flexDirection="row" gap={1} alignItems="center">
-          {rich && Svg ? <Svg source={rings([g.action.length, g.waiting.length, cleanable])} alt={`${g.action.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={40} height={40} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+          {rich && Svg ? <Svg source={rings([todo.length, g.waiting.length, cleanable])} alt={`${todo.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={40} height={40} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
@@ -246,16 +208,13 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
             <Text color={hex('subtle')}>{`${v.repos.length} repos · Jira · GitLab`}</Text>
           </Box>
         </Box>
-        {sync}
+        <Box flexDirection="row" gap={1} alignItems="center">
+          {sync}
+          <Button key="sync" label={v.busy ? '↻ Working…' : '↻ Sync'} variant="primary" onPress={() => void (v.busy || act.arm('sync', async () => void act.remote()))} />
+        </Box>
       </Box>
-      {filters}
-      <Box flexDirection="row" gap={1} flexWrap="wrap">
-        {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
-        {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
-        {tipped('cleanup', `✦ Cleanup ${cleanable}`, () => void act.review())}
-      </Box>
-      {approval('refresh')}
-      {approval('remote')}
+      {approval('sync')}
+      {stale && !v.busy && <Text color={hex('warning')}>{`◷ Jira and GitLab data is ${ago(age)} old: Sync to refresh.`}</Text>}
       {!/^Updated/.test(v.status) && <Text color={hex('subtle')}>{v.status}</Text>}
       {v.problems.map(p => (
         <Text color={hex('warning')}>{p}</Text>
@@ -263,29 +222,26 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {failed.map(s => (
         <Text color={hex('error')}>{`${s.name}: ${s.error ?? 'unavailable'}`}</Text>
       ))}
-      {g.action.length + g.waiting.length === 0 && !v.busy && v.snapshotAge !== undefined && <Text color={hex('success')}>✓ Nothing needs you right now</Text>}
-      {section('action', 'Next action', g.action, 'success', 'check')}
-      {section('waiting', 'Waiting', g.waiting, 'suggestion', 'hourglass')}
-      {section('tooling', 'Tooling', g.tooling, 'merged', 'wrench')}
-      {tab === 'all' && (
-      <Box flexDirection="column" gap={1} paddingX={2} {...glass()}>
-        {!c && cleanable > 0 && (
-          <Box flexDirection="column">
-            {head('cleanup', 'Cleanup', 'suggestion', 'sparkles', String(cleanable), ghost('t-cleanup', 'Review', () => void act.review()))}
-            <Text color={hex('subtle')}>{`${cleanable} branch(es) proven merged or safe to review`}</Text>
-          </Box>
-        )}
-        <Box flexDirection="column">
-          {head('local', 'Local state', 'inactive', 'folder', undefined, ghost('t-local', collapsedOf('local') ? 'Show' : 'Hide', () => void act.toggle('local')))}
-          {collapsedOf('local') ? (
-            <Text color={hex('subtle')}>{`${v.repos.length} repos · ${v.repos.reduce((n, r) => n + r.branches.length, 0)} branches · ${v.repos.reduce((n, r) => n + r.dirty.length, 0)} changed`}</Text>
-          ) : (
-            v.repos.map(r => (
-              <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
-            ))
-          )}
-        </Box>
+      <Box flexDirection="row" gap={1} flexWrap="wrap">
+        {seg('action', 'Needs action', todo.length)}
+        {seg('waiting', 'Waiting', g.waiting.length)}
       </Box>
+      <Box flexDirection="column" gap={1} paddingX={2} {...glass(tab === 'action' && !empty ? 'success' : 'inactive')}>
+        {empty ? (
+          <Text color={hex(tab === 'action' ? 'success' : 'subtle')}>{v.snapshotAge === undefined && !v.items.length ? 'Nothing yet: press Sync.' : tab === 'action' ? '✓ Nothing needs you right now' : 'Nothing is waiting'}</Text>
+        ) : (
+          queue()
+        )}
+        {!empty && total > CAP && ghost('more', showAll ? 'Show fewer' : `Show ${total - CAP} more`, () => void act.toggle('more'))}
+      </Box>
+      {!c && cleanable > 0 && (
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} paddingX={2} {...glass('suggestion')}>
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('sparkles', 'suggestion', 16, 'Cleanup')}
+            <Text>{`${cleanable} branch(es) ready to clean up`}</Text>
+          </Box>
+          <Button key="cleanup" label="Review" onPress={() => void act.review()} />
+        </Box>
       )}
       {c && (
         <Box flexDirection="column" gap={1} padding={1} {...glass()}>
@@ -316,18 +272,13 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           </Box>
         </Box>
       )}
-      {usage && (
-        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap" paddingX={2} {...glass()}>
-          <Box flexDirection="row" gap={1} alignItems="center">
-            {glyph('bars', 'suggestion', 16, 'Usage', '▮')}
-            <Text {...bold}>Usage</Text>
-          </Box>
-          <Box flexDirection="row" gap={1} alignItems="center">
-            {rich && Svg ? <Svg source={bar(usage.pct, hex('suggestion'))} alt={`${usage.pct}% used`} width={160} height={8} /> : null}
-            <Text color={hex('subtle')}>{`${Math.round(usage.pct)}% · ${usage.left}`}</Text>
-          </Box>
-        </Box>
-      )}
+      <Box flexDirection="column">
+        {ghost('t-local', v.collapsed.local === false ? '▾ Local details' : '▸ Local details', () => void act.toggle('local'))}
+        {v.collapsed.local === false &&
+          v.repos.map(r => (
+            <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
+          ))}
+      </Box>
     </Box>
   )
 }

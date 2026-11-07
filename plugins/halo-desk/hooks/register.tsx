@@ -22,7 +22,7 @@ const view = atom({ plugin: 'halo-desk', key: 'view' } as const, {
   problems: [],
   sources: [],
   busy: false,
-  status: 'Press Refresh',
+  status: 'Updated',
   collapsed: { waiting: true, tooling: true, local: true },
 } as ViewState)
 
@@ -138,7 +138,7 @@ async function refreshRemote($: any) {
 
   if (!jiraTokenEnv && !gitlabTokenEnv) {
     await $.prompt.submit({ text: browserRefreshPrompt({ config, keys, branches: targets.map(t => ({ project: t.project.name, branches: t.branches, gitlab: t.gitlab })), file }) })
-    await patch($, { armed: undefined, status: 'Asked Claude to refresh (browser or MCP, per config); press Refresh when it is done' })
+    await patch($, { armed: undefined, status: 'Asked Claude to refresh (browser or MCP, per config); press Sync when it is done' })
 
     return
   }
@@ -240,22 +240,14 @@ async function drawBody($: any, e: any) {
   const { config } = await loadConfig($)
   const maxAge = config.maxSnapshotAgeMinutes ?? 60
 
-  const { rateLimits } = await $.session.usage().catch(() => ({ rateLimits: [] as any[] }))
-  const limit = rateLimits.find(r => r.kind === 'seven_day') ?? rateLimits[0]
-  const now = await $.clock.now()
-  const ms = limit?.resetsAt ? Date.parse(limit.resetsAt) - now : NaN
-  const left = ms > 0 ? (ms >= 172800000 ? `${Math.floor(ms / 86400000)}d left` : ms >= 3600000 ? `${Math.floor(ms / 3600000)}h left` : `${Math.max(1, Math.floor(ms / 60000))}m left`) : 'resets soon'
-
   return renderView({
     E: $.ui.resolve(e),
     rich: e.surface !== 'terminal',
     v,
-    usage: limit ? { pct: limit.percentUsed, left } : undefined,
     maxAge,
     cleanable: branchCandidates(v.items, v.snapshotAge, maxAge).length,
     act: {
-      toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: !(s.collapsed[name] ?? name !== 'action') })),
-      // Show only this section; if it already is the only one open, show them all again.
+      toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: s.collapsed[name] === false })),
       focus: name => patch($, { tab: name }),
       refresh: () => refresh($),
       remote: () => refreshRemote($),

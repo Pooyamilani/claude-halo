@@ -23,7 +23,7 @@ test('a full view is accepted by the engine on every surface', async ($, on) => 
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
     expect(await ui.find({ type: 'Text', text: /ACME-1/ })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: /Push the branch/ })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', key: 'refresh' })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', key: 'sync' })).toBeTruthy()
     await ui.unmount()
   }
 })
@@ -31,11 +31,12 @@ test('a full view is accepted by the engine on every surface', async ($, on) => 
 test('an armed action raises an approval card with Approve and Cancel', async ($, on) => {
   let armed = ''
   on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, armed }, maxAge: 60, cleanable: 2, act }))
-  for (const [what, title] of [['remote', /Refresh Jira and GitLab data/], ['branches', /Delete 1 local branch/]] as const) {
+  for (const [what, title] of [['sync', /Sync Git, Jira and GitLab/], ['branches', /Delete 1 local branch/]] as const) {
     armed = what
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
     expect(await ui.find({ type: 'Text', text: title })).toBeTruthy()
     expect(await ui.find({ type: 'Button', key: 'approve' })).toBeTruthy()
+    if (what === 'sync') expect(await ui.find({ type: 'Button', key: 'git-only' })).toBeTruthy()
     expect(await ui.find({ type: 'Button', key: 'cancel' })).toBeTruthy()
     expect(await ui.find({ type: 'Button', key: 'close-cleanup' })).toBeTruthy()
     await ui.unmount()
@@ -45,7 +46,7 @@ test('an armed action raises an approval card with Approve and Cancel', async ($
 test('waiting reasons are plain, clamped, and not repeated from the status', async ($, on) => {
   const held = { ...item, key: 'ACME-9', bucket: 'waiting', nextStep: 'Wait', waitingOn: '**ON HOLD (2026-10-17):** ' + 'user said wait '.repeat(12), badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
   const same = { ...item, key: 'ACME-10', bucket: 'waiting', nextStep: 'Wait', waitingOn: 'On Hold', badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [held, same], collapsed: { waiting: false } }, maxAge: 60, cleanable: 0, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [held, same], tab: 'waiting' }, maxAge: 60, cleanable: 0, act }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Text', text: /\*\*/ })).toBeFalsy()
   expect(await ui.find({ type: 'Text', text: /^Wait: ON HOLD \(2026-10-17\): user said wait.*…$/ })).toBeTruthy()
@@ -59,18 +60,19 @@ test('the status chips carry their counts and are pressable', async ($, on) => {
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
     expect(await ui.find({ type: 'Button', text: /^. Needs action \d+$/ })).toBeTruthy()
     expect(await ui.find({ type: 'Button', text: /^. Waiting \d+$/ })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', text: /^✦ Cleanup 2$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^↻ Sync$/ })).toBeTruthy()
     await ui.unmount()
   }
 })
 
-test('by default Next action is open, the other sections show a one-line summary, and All is the lit segment', async ($, on) => {
-  const w = { ...item, key: 'ACME-7', bucket: 'waiting', waitingOn: 'Someone', badges: [], jira: { status: 'Open' }, mr: undefined }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [item, w], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
-  const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 24, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
-  expect(await ui.find({ type: 'Text', text: /^ACME-7$/ })).toBeTruthy()
-  expect(await ui.find({ type: 'Text', text: /^Someone$/ })).toBeFalsy()
-  expect(await ui.find({ type: 'Button', text: /^Show$/ })).toBeTruthy()
+test('Needs action groups by what to do, in order, and keeps cards without a Jira card in their own group', async ($, on) => {
+  const review = { ...item, key: 'ACME-7', nextStep: 'Review / merge the MR', badges: [] }
+  const push = { ...item, key: 'ACME-8', branch: 'ACME-8_x', nextStep: 'Push the branch', badges: [] }
+  const loose = { ...item, key: undefined, branch: 'tooling/y', bucket: 'tooling', nextStep: 'Local only, no card', badges: [], jira: undefined, mr: undefined, jiraUrl: undefined }
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [push, loose, review], cleanup: undefined, collapsed: {} }, maxAge: 60, cleanable: 0, act }))
+  const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
+  for (const label of [/^REVIEW · 1$/, /^PUSH · 1$/, /^NO JIRA CARD · 1$/]) expect(await ui.find({ type: 'Text', text: label })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /^OTHER/ })).toBeFalsy()
   await ui.unmount()
 })
 
