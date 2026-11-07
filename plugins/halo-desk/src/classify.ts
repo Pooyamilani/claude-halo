@@ -90,7 +90,10 @@ function classifyBranch({ b, key, project, settings, remote, notes, me, now, sta
   const kind = jira ? statusKind(jira, settings) : undefined
   const badges: Badge[] = []
   // Merged work is already on the base: a deleted remote branch (MR source branch removed) is not "unpushed".
-  const unpushed = !verdict.merged && (!b.pushed ? b.ahead > 0 : b.unpushed > 0)
+  // Neither is a branch whose MR GitLab says is merged and whose card is closed, even when the tip cannot be matched
+  // (a squash merge, or no sha in the snapshot): "push the branch" would be wrong, so it is left to review instead.
+  const mergedOnRemote = mr?.state === 'merged' && kind === 'closed'
+  const unpushed = !verdict.merged && !mergedOnRemote && (!b.pushed ? b.ahead > 0 : b.unpushed > 0)
   if (unpushed) badges.push('unpushed')
 
   const item: Item = {
@@ -136,7 +139,7 @@ function classifyBranch({ b, key, project, settings, remote, notes, me, now, sta
   if (kind === 'active' && idleDays > idle) return done('action', `Unclear: untouched ${idleDays} days, still active?`)
   // Rule 7: someone else's card.
   if (jira?.assignee && me && jira.assignee.toLowerCase() !== me) return done('waiting', 'Not yours', `owned by ${jira.assignee}`)
-  if (kind === 'closed') return done('local', 'Card closed but merge not verified: review before deleting')
+  if (kind === 'closed') return done('local', mergedOnRemote ? 'Card closed and MR merged, but this branch differs from the merged tip: review before deleting' : 'Card closed but merge not verified: review before deleting')
   if (!jira && remote) badges.push('unverified')
 
   return done('local', remote ? (jira ? 'Nothing pending' : 'Card not found in Jira') : 'No remote data: run a remote refresh')

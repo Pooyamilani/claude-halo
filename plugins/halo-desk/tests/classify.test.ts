@@ -98,3 +98,17 @@ test('merged MR with its remote branch deleted is not unpushed', async () => {
   expect(i.badges).not.toContain('unpushed')
   expect(i.nextStep).not.toContain('Push')
 })
+
+test('a closed card with a merged MR is never "push the branch", even without a matching tip', async () => {
+  const b = branch('ACME-9_squashed', { pushed: false, ahead: 4, cherryPlus: 4 })
+  const i = one(b, snapshot({ 'ACME-9': { status: 'Done' } }, [mr(b.name, { state: 'merged' })]))
+  expect(i.bucket).toBe('local')
+  expect(i.badges).not.toContain('unpushed')
+  expect(i.nextStep).toContain('MR merged')
+})
+
+test('an open card with a merged MR and unpushed work still needs a push', async () => {
+  const b = branch('ACME-10_more', { pushed: false, ahead: 2 })
+  const i = one(b, snapshot({ 'ACME-10': { status: 'In Progress' } }, [mr(b.name, { state: 'merged' })]))
+  expect(i.badges).toContain('unpushed')
+})
