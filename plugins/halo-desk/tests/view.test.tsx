@@ -17,7 +17,7 @@ const act: any = { toggle() {}, refresh() {}, remote() {}, review() {}, copy() {
 
 test('a full view is accepted by the engine on every surface', async ($, on) => {
   // A test hook stands for the plugin here; the mod's own hook passes this request on.
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: e.surface !== 'terminal', v, maxAge: 60, cleanable: 2, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: e.surface !== 'terminal', v, maxAge: 60, cleanable: 2, act, usage: { pct: 68, left: '2d left' } }))
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
@@ -40,4 +40,15 @@ test('an armed action raises an approval card with Approve and Cancel', async ($
     expect(await ui.find({ type: 'Button', key: 'close-cleanup' })).toBeTruthy()
     await ui.unmount()
   }
+})
+
+test('waiting reasons are plain, clamped, and not repeated from the status', async ($, on) => {
+  const held = { ...item, key: 'ACME-9', bucket: 'waiting', nextStep: 'Wait', waitingOn: '**ON HOLD (2026-10-17):** ' + 'user said wait '.repeat(12), badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
+  const same = { ...item, key: 'ACME-10', bucket: 'waiting', nextStep: 'Wait', waitingOn: 'On Hold', badges: ['on-hold'], jira: { status: 'On Hold' }, mr: undefined }
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [held, same] }, maxAge: 60, cleanable: 0, act }))
+  const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
+  expect(await ui.find({ type: 'Text', text: /\*\*/ })).toBeFalsy()
+  expect(await ui.find({ type: 'Text', text: /^Wait: ON HOLD \(2026-10-17\): user said wait.*…$/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /^Wait: On Hold$/ })).toBeFalsy()
+  await ui.unmount()
 })

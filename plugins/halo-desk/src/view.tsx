@@ -13,11 +13,32 @@ const MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">
   <circle cx="23" cy="23" r="9" fill="none" stroke="#4fd1b5" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="38 56.55" transform="rotate(-90 23 23)"/>
   <circle cx="23" cy="2.5" r="2" fill="#e07a52"/><circle cx="40.75" cy="33.25" r="2" fill="#4fd1b5"/><circle cx="5.25" cy="33.25" r="2" fill="#8f9bff"/>
 </svg>`
+/** Small line icons (24x24 grid), tinted by the caller. Decorative: the label beside each says what it is. */
+const icon = (paths: string, color: string, fill = 'none') =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`
+const ICONS = {
+  check: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="${c}"/><path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#0f1218" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  hourglass: (c: string) => icon('<path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4A2 2 0 0 0 7 17.8V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4A2 2 0 0 0 17 6.2V2"/>', c),
+  wrench: (c: string) => icon('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>', c),
+  sparkles: (c: string) => icon('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8-1.8-.7 1.8-.7z"/>', c),
+  folder: (c: string) => icon('<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', c),
+  bars: (c: string) => icon('<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>', c),
+  dot: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="${c}"/></svg>`,
+  hollow: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="${c}" stroke-width="3"/></svg>`,
+}
+/** A thin progress bar: a quiet track and a rounded fill. */
+const bar = (pct: number, color: string, w = 160) => {
+  const fill = Math.max(0, Math.min(100, pct)) * (w / 100)
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 8"><rect width="${w}" height="8" rx="4" fill="#ffffff" fill-opacity=".14"/><rect width="${Math.max(fill, 8)}" height="8" rx="4" fill="${color}"/></svg>`
+}
 const TIPS = {
   refresh: 'Re-reads local git (fetches origin, branches, stashes, changes) and reclassifies with the last saved Jira/GitLab data.',
   remote: 'Pulls fresh Jira and GitLab data (tokens, or Claude through your signed-in browser or an MCP server), saves it, then refreshes.',
   cleanup: 'Lists branches proven merged and stashes already in the base, with evidence. Deletes only after a second press.',
 }
+
+export type Usage = { pct: number; left: string }
 
 export type Actions = {
   toggle: (name: string) => unknown
@@ -33,14 +54,17 @@ export type Actions = {
 }
 
 /** Pure drawing: the element table, the surface, the data and the handlers in; a tree out. */
-export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions }) {
-  const { E, rich, v, maxAge, cleanable, act } = args
+export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions; usage?: Usage }) {
+  const { E, rich, v, maxAge, cleanable, act, usage } = args
   const { Box, Text, Button, Link, Svg } = E
   const bold: any = { bold: true }
   const tint = (c: string, a: number): any => (rich ? { backgroundColor: `${hex(c)}${alpha(a)}` } : {})
   const edge = (c: string, a: number): any => (rich ? { borderColor: `${hex(c)}${alpha(a)}` } : { borderColor: hex(c) })
   const g = group(v.items)
   const glass = (c = 'inactive'): any => ({ borderStyle: 'round', ...edge(c, c === 'inactive' ? 0.3 : 0.4), ...(rich ? { backgroundColor: '#ffffff0a' } : {}) })
+
+  const glyph = (name: keyof typeof ICONS, c: string, size: number, alt: string, fallback = '●') =>
+    rich && Svg ? <Svg source={ICONS[name](hex(c))} alt={alt} width={size} height={size} /> : <Text color={hex(c)}>{fallback}</Text>
 
   // A pill is one tinted line of text, not a bordered box: it keeps a card's header a single row high.
   const pill = (label: string, color: string) =>
@@ -58,43 +82,56 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       : age === undefined
         ? pill('○ Local only', 'inactive')
         : age > (maxAge)
-          ? pill(`● Stale · ${age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
-          : pill(`● Synced · ${age}m`, 'success')
+          ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
+          : pill(`● Synced: ${age}m`, 'success')
 
-  const tile = (label: string, count: number, color: string) => (
-    <Box key={`tile-${label}`} flexDirection="column" flexGrow={1} paddingX={1} {...glass(count > 0 ? color : 'inactive')} hover={rich ? { backgroundColor: `${hex(color)}2e` } : {}}>
-      <Text {...bold} color={hex(count > 0 ? color : 'inactive')}>
-        {String(count).padStart(2, '0')}
-      </Text>
-      <Text color={hex('subtle')}>{label}</Text>
+  // A status chip: a hollow ring and a label. The counts live in the section headers below.
+  const chip = (label: string, color: string) => (
+    <Box key={`chip-${label}`} flexDirection="row" gap={1} alignItems="center">
+      {glyph('hollow', color, 16, label, '○')}
+      <Text {...bold}>{label}</Text>
     </Box>
   )
 
   const accentOf = (i: Item) =>
     i.badges.includes('unpushed') ? 'error' : i.badges.includes('review-stale') || i.badges.includes('jira-mismatch') ? 'warning' : i.bucket === 'action' ? 'suggestion' : i.bucket === 'tooling' ? 'merged' : 'inactive'
 
+  // Notes and Jira text arrive with Markdown and can run long: show plain text, one clamp.
+  const tidy = (t: string, max = 90) => {
+    const plain = t.replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim()
+
+    return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain
+  }
+
   const card = (i: Item) => {
     const d = describeItem(i)
     const accent = accentOf(i)
+    const badgeLabels = d.badges.map(b => b.toLowerCase())
+    // "On Hold" as a badge, a status and a reason says one thing three times: keep the first.
+    const status = i.jira?.status && !badgeLabels.includes(i.jira.status.toLowerCase()) ? i.jira.status : undefined
+    const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn) : undefined
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
 
     return (
-      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="row" {...glass(accent)} hover={rich ? { backgroundColor: `${hex(accent)}1f`, borderColor: `${hex(accent)}cc` } : {}}>
-        <Box width={1} backgroundColor={hex(accent)} />
-        <Box flexDirection="column" flexGrow={1} paddingX={1} paddingY={1}>
-          <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
+      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingY={1} hover={rich ? { backgroundColor: `${hex(accent)}12` } : {}}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('dot', accent, 12, accent)}
             <Text {...bold}>{i.key ?? i.branch}</Text>
-            <Box flexDirection="row" gap={1} flexWrap="wrap">
-              {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
-              {i.jira?.status && pill(i.jira.status, accent)}
-            </Box>
+            {status && pill(status, accent)}
           </Box>
+          <Box flexDirection="row" gap={1} flexWrap="wrap" alignItems="center">
+            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+          </Box>
+        </Box>
+        <Box flexDirection="column" paddingLeft={3}>
           <Text color={hex('subtle')}>
             {i.project}
             {i.branch ? ` · ${i.branch}` : ''}
           </Text>
-          <Text>{i.waitingOn ? `${i.nextStep}: ${i.waitingOn}` : i.nextStep}</Text>
-          <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" marginTop={1}>
+          <Text>{reason ? `${i.nextStep}: ${reason}` : i.nextStep}</Text>
+          <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" justifyContent="space-between">
+            <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
             {mr && <Text color={hex('subtle')}>{mr}</Text>}
             {i.jiraUrl && (
               <Text>
@@ -106,19 +143,20 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
                 <Link href={i.mr.webUrl}>Merge request</Link>
               </Text>
             )}
-            {i.branch && <Button key={`copy-${i.project}-${i.branch}`} plain label="Copy branch" onPress={() => void act.copy(i.branch)} />}
+            </Box>
+            {i.branch && <Button key={`copy-${i.project}-${i.branch}`} plain label="⧉ Copy branch" onPress={() => void act.copy(i.branch)} />}
           </Box>
         </Box>
       </Box>
     )
   }
 
-  const section = (name: string, label: string, items: Item[], color: string) =>
+  const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS) =>
     items.length === 0 ? null : (
-      <Box flexDirection="column" gap={1}>
+      <Box key={`section-${name}`} flexDirection="column" padding={1} {...glass()}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">
-            <Text color={hex(color)}>●</Text>
+            {glyph(mark, color, 20, label)}
             <Text {...bold}>{label}</Text>
             <Text color={hex('subtle')}>{items.length}</Text>
           </Box>
@@ -167,9 +205,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   return (
     <Box flexDirection="column" gap={1} padding={1}>
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" padding={1} {...glass()}>
         <Box flexDirection="row" gap={1} alignItems="center">
-          {rich && Svg ? <Svg source={MARK} alt="halo" width={30} height={30} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+          {rich && Svg ? <Svg source={MARK} alt="halo" width={44} height={44} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
@@ -179,15 +217,15 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         </Box>
         {sync}
       </Box>
-      <Box flexDirection="row" gap={1}>
-        {tile('Needs action', g.action.length, 'error')}
-        {tile('Waiting', g.waiting.length, 'warning')}
-        {tile('Cleanup', cleanable, 'suggestion')}
+      <Box flexDirection="row" gap={2} paddingX={1} flexWrap="wrap">
+        {chip('Needs action', g.action.length ? 'error' : 'success')}
+        {chip('Waiting', g.waiting.length ? 'warning' : 'success')}
+        {chip('Clean up', cleanable ? 'suggestion' : 'success')}
       </Box>
       <Box flexDirection="row" gap={1}>
-        {tipped('refresh', 'Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
-        {tipped('remote', 'Remote', () => void act.arm('remote', act.remote))}
-        {tipped('cleanup', 'Cleanup', () => void act.review())}
+        {tipped('refresh', '↻ Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
+        {tipped('remote', '☁ Remote', () => void act.arm('remote', act.remote))}
+        {tipped('cleanup', '✦ Cleanup', () => void act.review())}
       </Box>
       {approval('refresh')}
       {approval('remote')}
@@ -203,13 +241,16 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {failed.map(s => (
         <Text color={hex('error')}>{`${s.name}: ${s.error ?? 'unavailable'}`}</Text>
       ))}
-      {section('action', 'Needs action', g.action, 'error')}
-      {section('waiting', 'Waiting on something', g.waiting, 'warning')}
-      {section('tooling', 'Tooling, no card', g.tooling, 'merged')}
-      <Box flexDirection="column" gap={1} padding={1} {...glass()}>
+      {section('action', 'Next action', g.action, 'success', 'check')}
+      {section('waiting', 'Waiting on something', g.waiting, 'suggestion', 'hourglass')}
+      {section('tooling', 'Tooling, no card', g.tooling, 'merged', 'wrench')}
+      <Box flexDirection="column" padding={1} {...glass()}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
-          <Text {...bold}>Local state</Text>
-          <Button key="t-local" plain label={v.collapsed.local ? 'Show' : 'Hide'} onPress={() => void toggle('local')} />
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('folder', 'inactive', 20, 'Local state')}
+            <Text {...bold}>Local state</Text>
+          </Box>
+          <Button key="t-local" plain label={v.collapsed.local ? 'Show' : 'Hide'} onPress={() => void act.toggle('local')} />
         </Box>
         {!v.collapsed.local &&
           v.repos.map(r => (
@@ -217,8 +258,11 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           ))}
       </Box>
       {c && (
-        <Box flexDirection="column" gap={1} padding={1} {...glass('suggestion')}>
-          <Text {...bold}>Cleanup review</Text>
+        <Box flexDirection="column" gap={1} padding={1} {...glass()}>
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('sparkles', 'suggestion', 20, 'Cleanup review')}
+            <Text {...bold}>Cleanup review</Text>
+          </Box>
           <Text color={hex('subtle')}>Nothing is deleted until you confirm. Untracked files are never deleted here.</Text>
           {c.branches.map(b => (
             <Text color={hex(b.action === 'delete' ? 'success' : 'warning')}>{`${b.action === 'delete' ? '✓' : '?'} ${b.project}/${b.branch}: ${b.reasons.join('; ')}`}</Text>
@@ -239,6 +283,18 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
               <Button key="drop-stashes" label="Drop stashes" onPress={() => void act.arm('stashes', act.dropStashes)} />
             )}
             <Button key="close-cleanup" plain label="Cancel" onPress={() => void act.closeCleanup()} />
+          </Box>
+        </Box>
+      )}
+      {usage && (
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} padding={1} {...glass()}>
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('bars', 'suggestion', 20, 'Usage', '▮')}
+            <Text {...bold}>Usage</Text>
+          </Box>
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {rich && Svg ? <Svg source={bar(usage.pct, hex('suggestion'))} alt={`${usage.pct}% used`} width={160} height={8} /> : null}
+            <Text color={hex('subtle')}>{`${Math.round(usage.pct)}% · ${usage.left}`}</Text>
           </Box>
         </Box>
       )}

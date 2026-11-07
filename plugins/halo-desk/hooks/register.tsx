@@ -232,10 +232,17 @@ async function drawBody($: any, e: any) {
   const { config } = await loadConfig($)
   const maxAge = config.maxSnapshotAgeMinutes ?? 60
 
+  const { rateLimits } = await $.session.usage().catch(() => ({ rateLimits: [] as any[] }))
+  const limit = rateLimits.find(r => r.kind === 'seven_day') ?? rateLimits[0]
+  const now = await $.clock.now()
+  const ms = limit?.resetsAt ? Date.parse(limit.resetsAt) - now : NaN
+  const left = ms > 0 ? (ms >= 172800000 ? `${Math.floor(ms / 86400000)}d left` : ms >= 3600000 ? `${Math.floor(ms / 3600000)}h left` : `${Math.max(1, Math.floor(ms / 60000))}m left`) : 'resets soon'
+
   return renderView({
     E: $.ui.resolve(e),
     rich: e.surface !== 'terminal',
     v,
+    usage: limit ? { pct: limit.percentUsed, left } : undefined,
     maxAge,
     cleanable: branchCandidates(v.items, v.snapshotAge, maxAge).length,
     act: {
