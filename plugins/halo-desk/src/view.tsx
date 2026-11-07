@@ -90,23 +90,20 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
           : pill(`● Synced: ${age}m`, 'success')
 
-  // A status chip is a stat: ring, count first, then the label. The chip whose section is shown alone is lit; zero counts go quiet with a green ring.
-  const alone = (name: string) => ['action', 'waiting', 'tooling', 'local'].every(n => (n === name ? !v.collapsed[n] : !!v.collapsed[n]))
-  const chip = (name: string, label: string, count: number, color: string, onPress: () => void) => {
-    const lit = name !== 'cleanup' && alone(name)
-    const c = count ? color : 'inactive'
-    const go = () => void onPress()
-    // The border is what gives the tile rounded corners; it also supplies the vertical padding, so no paddingY.
-    return (
-      <Box key={`chip-${name}`} flexGrow={1} flexDirection="column" alignItems="center" paddingX={1} borderStyle="round" {...edge(c, lit ? 0.9 : count ? 0.4 : 0.15)} {...tint(c, lit ? 0.3 : count ? 0.12 : 0.04)} hover={rich ? { backgroundColor: `${hex(c)}33`, borderColor: `${hex(c)}cc` } : {}}>
-        <Box flexDirection="row" gap={1} alignItems="center">
-          {glyph(count ? 'hollow' : 'check', count ? color : 'success', 18, label, count ? '●' : '✓')}
-          <Button key={`chip-${name}`} plain label={`${count}`} onPress={go} />
-        </Box>
-        <Button key={`chip-label-${name}`} plain label={lit ? `${label} ▾` : label} onPress={go} />
-      </Box>
-    )
-  }
+  // The filters are one native segmented row of Buttons: the shown section is primary, the rest neutral. "All" resets.
+  const SECTIONS = ['action', 'waiting', 'tooling', 'local']
+  const alone = (name: string) => SECTIONS.every(n => (n === name ? !v.collapsed[n] : !!v.collapsed[n]))
+  const seg = (name: string, label: string, count: number, onPress: () => void, lit: boolean) => (
+    <Button key={`seg-${name}`} label={`${label} ${count}`} variant={lit ? 'primary' : undefined} onPress={onPress} />
+  )
+  const filters = (
+    <Box flexDirection="row" gap={1} flexWrap="wrap" alignItems="center">
+      {seg('all', 'All', g.action.length + g.waiting.length, () => void act.focus('all'), !SECTIONS.some(alone))}
+      {seg('action', 'Needs action', g.action.length, () => void act.focus('action'), alone('action'))}
+      {seg('waiting', 'Waiting', g.waiting.length, () => void act.focus('waiting'), alone('waiting'))}
+      {seg('cleanup', 'Cleanup', cleanable, () => void act.review(), false)}
+    </Box>
+  )
 
   const accentOf = (i: Item) =>
     i.badges.includes('unpushed') ? 'error' : i.badges.includes('review-stale') || i.badges.includes('jira-mismatch') ? 'warning' : i.bucket === 'action' ? 'suggestion' : i.bucket === 'tooling' ? 'merged' : 'inactive'
@@ -142,7 +139,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         <Box flexDirection="column" paddingLeft={3}>
           <Text color={hex('subtle')}>
             {i.project}
-            {i.branch ? ` · ${i.branch}` : ''}
+            {i.branch ? ` · ${i.branch.length > 46 ? `${i.branch.slice(0, 30)}…${i.branch.slice(-15)}` : i.branch}` : ''}
           </Text>
           <Text>{reason ? `${i.nextStep}: ${reason}` : i.nextStep}</Text>
           <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" justifyContent="space-between">
@@ -159,7 +156,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
               </Text>
             )}
             </Box>
-            {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy branch', () => void act.copy(i.branch))}
+            {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
           </Box>
         </Box>
       </Box>
@@ -232,11 +229,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         </Box>
         {sync}
       </Box>
-      <Box flexDirection="row" gap={1} flexWrap="wrap">
-        {chip('action', 'Needs action', g.action.length, 'error', () => void act.focus('action'))}
-        {chip('waiting', 'Waiting', g.waiting.length, 'warning', () => void act.focus('waiting'))}
-        {chip('cleanup', 'Clean up', cleanable, 'suggestion', () => void act.review())}
-      </Box>
+      {filters}
       <Box flexDirection="row" gap={1}>
         {tipped('refresh', '↻ Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
         {tipped('remote', '☁ Remote', () => void act.arm('remote', act.remote))}
@@ -257,7 +250,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       ))}
       {section('action', 'Next action', g.action, 'success', 'check')}
       {section('waiting', 'Waiting on something', g.waiting, 'suggestion', 'hourglass')}
-      {section('tooling', 'Tooling, no card', g.tooling, 'merged', 'wrench')}
+      {section('tooling', 'Tooling', g.tooling, 'merged', 'wrench')}
       <Box flexDirection="column" gap={1} padding={1} {...glass()}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">

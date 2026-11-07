@@ -251,6 +251,7 @@ async function drawBody($: any, e: any) {
       focus: name =>
         update($, view, s => {
           const all = ['action', 'waiting', 'tooling', 'local']
+          if (name === 'all') return { ...s, collapsed: Object.fromEntries(all.map(n => [n, false])) }
           const alone = all.every(n => (n === name ? !s.collapsed[n] : !!s.collapsed[n]))
 
           return { ...s, collapsed: Object.fromEntries(all.map(n => [n, alone ? false : n !== name])) }
