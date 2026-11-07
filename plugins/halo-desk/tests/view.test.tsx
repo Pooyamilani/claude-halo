@@ -76,9 +76,21 @@ test('by default Next action is open, the other sections show a one-line summary
 
 test('rows lead with the Jira title; the first Next action is the hero with its actions drawn', async ($, on) => {
   const titled = { ...item, key: 'ACME-1', bucket: 'action', jira: { status: 'Review', summary: 'Conditional required discount' } }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: [titled], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: [titled, { ...titled, key: 'ACME-2', branch: 'ACME-2_x' }], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Text', text: /Conditional required discount/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Button', text: /Copy/ })).toBeTruthy()
+  await ui.unmount()
+})
+
+test('odd real-world rows still draw', async ($, on) => {
+  const odd = [
+    { ...item, key: undefined, branch: 'TOOLING/x', bucket: 'tooling', jira: undefined, mr: undefined, jiraUrl: undefined, waitingOn: undefined, badges: ['review-stale'] },
+    { ...item, key: 'HD-1', branch: undefined, bucket: 'waiting', jira: { status: 'Develop', summary: 'این مورد نیازمند «اضافه» شدن' }, mr: undefined, waitingOn: 'ON HOLD: ' + 'x'.repeat(300), badges: [] },
+    { ...item, key: 'RCT-1', bucket: 'action', jira: { status: 'Review', summary: undefined }, badges: ['unpushed', 'on-hold'] },
+  ]
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: odd, collapsed: {} }, maxAge: 60, cleanable: 2, act, usage: { pct: 27, left: '3d left' } }))
+  const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Button', text: /Copy/ })).toBeTruthy()
   await ui.unmount()
 })
