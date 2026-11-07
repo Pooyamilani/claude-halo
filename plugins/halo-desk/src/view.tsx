@@ -96,9 +96,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const lit = name !== 'cleanup' && alone(name)
     const c = count ? color : 'inactive'
     const go = () => void onPress()
-    // Borderless on purpose: a border costs a full extra row on the desktop. The tint and the stacked count over label carry the shape.
+    // The border is what gives the tile rounded corners; it also supplies the vertical padding, so no paddingY.
     return (
-      <Box key={`chip-${name}`} flexGrow={1} flexDirection="column" alignItems="center" paddingX={1} paddingY={1} borderStyle={rich ? undefined : 'round'} {...(rich ? {} : edge(c, 0.4))} {...tint(c, lit ? 0.3 : count ? 0.12 : 0.04)} hover={rich ? { backgroundColor: `${hex(c)}33` } : {}}>
+      <Box key={`chip-${name}`} flexGrow={1} flexDirection="column" alignItems="center" paddingX={1} borderStyle="round" {...edge(c, lit ? 0.9 : count ? 0.4 : 0.15)} {...tint(c, lit ? 0.3 : count ? 0.12 : 0.04)} hover={rich ? { backgroundColor: `${hex(c)}33`, borderColor: `${hex(c)}cc` } : {}}>
         <Box flexDirection="row" gap={1} alignItems="center">
           {glyph(count ? 'hollow' : 'check', count ? color : 'success', 18, label, count ? '●' : '✓')}
           <Button key={`chip-${name}`} plain label={`${count}`} onPress={go} />
