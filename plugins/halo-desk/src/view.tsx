@@ -26,6 +26,17 @@ const ICONS = {
   dot: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="${c}"/></svg>`,
   hollow: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="${c}" stroke-width="3"/></svg>`,
 }
+/** The Halo mark as data: three rings (action, waiting, cleanup), each filled by how much is waiting in it. */
+const rings = (counts: [number, number, number]) => {
+  const arc = (r: number, n: number, c: string) => {
+    const len = 2 * Math.PI * r
+    const frac = n === 0 ? 0 : Math.max(0.1, Math.min(1, n / 6))
+
+    return `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(19, counts[0], HALO.error)}${arc(13, counts[1], HALO.warning)}${arc(7, counts[2], HALO.suggestion)}</svg>`
+}
 /** A thin progress bar: a quiet track and a rounded fill. */
 const bar = (pct: number, color: string, w = 160) => {
   const fill = Math.max(0, Math.min(100, pct)) * (w / 100)
@@ -55,8 +66,10 @@ export type Actions = {
 }
 
 /** Pure drawing: the element table, the surface, the data and the handlers in; a tree out. */
-export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions; usage?: Usage }) {
+export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions; usage?: Usage; hover?: boolean }) {
   const { E, rich, v, maxAge, cleanable, act, usage } = args
+  // Hover reveals need a pointer: the desktop and VS Code have one, a phone does not.
+  const hoverable = args.hover ?? rich
   const { Box, Text, Button, Link, Svg } = E
   const bold: any = { bold: true }
   const tint = (c: string, a: number): any => (rich ? { backgroundColor: `${hex(c)}${alpha(a)}` } : {})
@@ -97,8 +110,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const alone = (name: string) => !isDefault && SECTIONS.every(n => (n === name ? !collapsedOf(n) : collapsedOf(n)))
   // A Button holds one plain string here, so the category cue is a ring character in the label.
   // One rounded track holds the segments: the shown one is primary, the rest plain.
+  const HOT: Record<string, string> = { all: '1', action: '2', waiting: '3', cleanup: '4' }
   const seg = (name: string, label: string, count: number, onPress: () => void, lit: boolean) => (
-    <Button key={`seg-${name}`} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
+    <Button key={`seg-${name}`} hotkey={HOT[name]} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
   )
   const filters = (
     <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
@@ -119,42 +133,56 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain
   }
 
-  const card = (i: Item) => {
+  // A row is two lines: the Jira title, then what to do. Its actions appear under the pointer (always, where there is none).
+  // The first Next action is the hero: the same row on a lit card, with its actions always shown.
+  const row = (i: Item, hero = false) => {
     const d = describeItem(i)
     const accent = accentOf(i)
     const badgeLabels = d.badges.map(b => b.toLowerCase())
     // "On Hold" as a badge, a status and a reason says one thing three times: keep the first.
     const status = i.jira?.status && !badgeLabels.includes(i.jira.status.toLowerCase()) ? i.jira.status : undefined
-    const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn) : undefined
+    const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn, 70) : undefined
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
+    const title = i.jira?.summary ? tidy(i.jira.summary, 80) : (i.branch ?? i.nextStep)
+    const scope = `row-${i.project}-${i.branch ?? i.key}`
+    const actions = (
+      <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
+        {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
+        {i.jiraUrl && (
+          <Text>
+            <Link href={i.jiraUrl}>Jira card</Link>
+          </Text>
+        )}
+        {i.mr?.webUrl && (
+          <Text>
+            <Link href={i.mr.webUrl}>Merge request</Link>
+          </Text>
+        )}
+      </Box>
+    )
 
     return (
-      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column">
-        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
-          <Box flexDirection="row" gap={1} alignItems="center" flexWrap="wrap">
-            {glyph('dot', accent, 12, accent)}
+      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column" hover={hoverable ? { scope } : undefined}>
+        <Box flexDirection="row" gap={1} alignItems="center">
+          {glyph('dot', accent, 12, accent)}
+          <Text wrap="truncate-end">
             <Text {...bold}>{i.key ?? i.branch}</Text>
-            {status && pill(status, accent)}
-            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
-          </Box>
-          {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
+            {`  ${title}`}
+          </Text>
         </Box>
         <Box flexDirection="column" paddingLeft={3}>
-          <Text wrap="truncate-end" color={hex('subtle')}>{`${i.project}${i.branch ? ` · ${i.branch}` : ''}`}</Text>
-          <Text>{reason ? `${i.nextStep}: ${reason}` : i.nextStep}</Text>
-          <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
-            {mr && <Text color={hex('subtle')}>{mr}</Text>}
-            {i.jiraUrl && (
-              <Text>
-                <Link href={i.jiraUrl}>Jira card</Link>
-              </Text>
-            )}
-            {i.mr?.webUrl && (
-              <Text>
-                <Link href={i.mr.webUrl}>Merge request</Link>
-              </Text>
-            )}
+          <Box flexDirection="row" gap={1} alignItems="center" flexWrap="wrap">
+            {status && pill(status, accent)}
+            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+            <Text color={hex('subtle')} wrap="truncate-end">{[reason ? `${i.nextStep}: ${reason}` : i.nextStep, mr].filter(Boolean).join(' · ')}</Text>
           </Box>
+          {hoverable && !hero ? (
+            <Box display="none" hover={{ scope, display: 'flex' }}>
+              {actions}
+            </Box>
+          ) : (
+            actions
+          )}
         </Box>
       </Box>
     )
@@ -183,7 +211,16 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       : frame(
           name,
           head(name, label, color, mark, String(items.length), ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name))),
-          <Box flexDirection="column" gap={1}>{items.map(card)}</Box>,
+          <Box flexDirection="column" gap={1}>
+            {name === 'action' ? (
+              <Box flexDirection="column" gap={1} paddingX={1} {...glass('success')} {...tint('success', 0.06)}>
+                {row(items[0], true)}
+              </Box>
+            ) : (
+              row(items[0])
+            )}
+            {items.slice(1).map(i => row(i))}
+          </Box>,
           `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
           name === 'action' ? 'success' : 'inactive',
         )
@@ -229,7 +266,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     <Box flexDirection="column" gap={1} padding={1}>
       <Box flexDirection="row" justifyContent="space-between" alignItems="center">
         <Box flexDirection="row" gap={1} alignItems="center">
-          {rich && Svg ? <Svg source={MARK} alt="halo" width={32} height={32} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+          {rich && Svg ? <Svg source={rings([g.action.length, g.waiting.length, cleanable])} alt={`${g.action.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={40} height={40} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
@@ -262,17 +299,24 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {section('action', 'Next action', g.action, 'success', 'check')}
       {section('waiting', 'Waiting', g.waiting, 'suggestion', 'hourglass')}
       {section('tooling', 'Tooling', g.tooling, 'merged', 'wrench')}
-      {!c && cleanable > 0 && frame('cleanup', head('cleanup', 'Cleanup', 'suggestion', 'sparkles', String(cleanable), ghost('t-cleanup', 'Review', () => void act.review())), null, `${cleanable} branch(es) proven merged or safe to review`)}
-      {frame(
-        'local',
-        head('local', 'Local state', 'inactive', 'folder', undefined, ghost('t-local', collapsedOf('local') ? 'Show' : 'Hide', () => void act.toggle('local'))),
+      <Box flexDirection="column" gap={1} paddingX={2} {...glass()}>
+        {!c && cleanable > 0 && (
+          <Box flexDirection="column">
+            {head('cleanup', 'Cleanup', 'suggestion', 'sparkles', String(cleanable), ghost('t-cleanup', 'Review', () => void act.review()))}
+            <Text color={hex('subtle')}>{`${cleanable} branch(es) proven merged or safe to review`}</Text>
+          </Box>
+        )}
         <Box flexDirection="column">
-          {v.repos.map(r => (
-            <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
-          ))}
-        </Box>,
-        `${v.repos.length} repos · ${v.repos.reduce((n, r) => n + r.branches.length, 0)} branches · ${v.repos.reduce((n, r) => n + r.dirty.length, 0)} changed`,
-      )}
+          {head('local', 'Local state', 'inactive', 'folder', undefined, ghost('t-local', collapsedOf('local') ? 'Show' : 'Hide', () => void act.toggle('local')))}
+          {collapsedOf('local') ? (
+            <Text color={hex('subtle')}>{`${v.repos.length} repos · ${v.repos.reduce((n, r) => n + r.branches.length, 0)} branches · ${v.repos.reduce((n, r) => n + r.dirty.length, 0)} changed`}</Text>
+          ) : (
+            v.repos.map(r => (
+              <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
+            ))
+          )}
+        </Box>
+      </Box>
       {c && (
         <Box flexDirection="column" gap={1} padding={1} {...glass()}>
           <Box flexDirection="row" gap={1} alignItems="center">

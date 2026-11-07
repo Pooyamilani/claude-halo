@@ -249,6 +249,7 @@ async function drawBody($: any, e: any) {
   return renderView({
     E: $.ui.resolve(e),
     rich: e.surface !== 'terminal',
+    hover: e.surface === 'desktop' || e.surface === 'vscode',
     v,
     usage: limit ? { pct: limit.percentUsed, left } : undefined,
     maxAge,
