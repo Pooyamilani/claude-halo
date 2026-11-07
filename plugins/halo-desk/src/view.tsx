@@ -22,11 +22,13 @@ const ICONS = {
 /** The Halo mark as data: three rings (action, waiting, cleanup), each filled by how much is waiting in it. */
 const rings = (counts: [number, number, number], lit = -1) => {
   const arc = (i: number, r: number, n: number, c: string) => {
-    const w = i === lit ? 5.2 : 3.2
+    const w = 3.2
     const len = 2 * Math.PI * r
     const frac = n === 0 ? 0 : Math.max(0.1, Math.min(1, n / 6))
 
-    return `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="${i === lit ? 0.22 : 0.12}" stroke-width="${w}"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
+    const ring = `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="${w}"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
+    // The selected ring shivers: a small back-and-forth turn around the centre (SVG animation; still if the host ignores it).
+    return i === lit ? `<g>${ring}<animateTransform attributeName="transform" type="rotate" values="0 23 23;7 23 23;-7 23 23;4 23 23;0 23 23" dur="1.4s" repeatCount="indefinite"/></g>` : ring
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(0, 19, counts[0], HALO.success)}${arc(1, 13, counts[1], HALO.suggestion)}${arc(2, 7, counts[2], HALO.merged)}<circle cx="23" cy="23" r="2.2" fill="${counts[0] ? HALO.success : '#ffffff'}" fill-opacity="${counts[0] ? 1 : 0.35}"/></svg>`
