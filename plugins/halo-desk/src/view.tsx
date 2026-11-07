@@ -28,7 +28,7 @@ const rings = (counts: [number, number, number]) => {
     return `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(19, counts[0], HALO.error)}${arc(13, counts[1], HALO.warning)}${arc(7, counts[2], HALO.suggestion)}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(19, counts[0], HALO.success)}${arc(13, counts[1], HALO.suggestion)}${arc(7, counts[2], HALO.merged)}<circle cx="23" cy="23" r="2.2" fill="${counts[0] ? HALO.success : '#ffffff'}" fill-opacity="${counts[0] ? 1 : 0.35}"/></svg>`
 }
 
 export type Actions = {
