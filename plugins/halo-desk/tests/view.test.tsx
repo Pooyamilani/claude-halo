@@ -13,7 +13,7 @@ const v = {
   problems: ['a problem'], sources: [{ name: 'jira', ok: false, error: 'not signed in' }], busy: false, status: 'Updated', collapsed: {}, snapshotAge: 5,
   cleanup: { branches: [{ project: 'web', branch: 'old', action: 'delete', reasons: ['merged'] }], stashes: [{ project: 'web', stash: { index: 0, message: 'WIP' }, action: 'drop', why: 'noise' }], untracked: [{ project: 'web', files: ['a'] }] },
 }
-const act: any = { toggle() {}, refresh() {}, remote() {}, review() {}, copy() {}, arm() {}, cancel() {}, closeCleanup() {}, deleteBranches: async () => {}, dropStashes: async () => {} }
+const act: any = { toggle() {}, focus() {}, refresh() {}, remote() {}, review() {}, copy() {}, arm() {}, cancel() {}, closeCleanup() {}, deleteBranches: async () => {}, dropStashes: async () => {} }
 
 test('a full view is accepted by the engine on every surface', async ($, on) => {
   // A test hook stands for the plugin here; the mod's own hook passes this request on.
@@ -51,4 +51,15 @@ test('waiting reasons are plain, clamped, and not repeated from the status', asy
   expect(await ui.find({ type: 'Text', text: /^Wait: ON HOLD \(2026-10-17\): user said wait.*…$/ })).toBeTruthy()
   expect(await ui.find({ type: 'Text', text: /^Wait: On Hold$/ })).toBeFalsy()
   await ui.unmount()
+})
+
+test('the status chips carry their counts and are pressable', async ($, on) => {
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: e.surface !== 'terminal', v, maxAge: 60, cleanable: 2, act }))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
+    expect(await ui.find({ type: 'Button', text: /^Needs action \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^Waiting \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^Clean up 2$/ })).toBeTruthy()
+    await ui.unmount()
+  }
 })

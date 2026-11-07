@@ -247,6 +247,14 @@ async function drawBody($: any, e: any) {
     cleanable: branchCandidates(v.items, v.snapshotAge, maxAge).length,
     act: {
       toggle: name => update($, view, s => ({ ...s, collapsed: { ...s.collapsed, [name]: !s.collapsed[name] } })),
+      // Show only this section; if it already is the only one open, show them all again.
+      focus: name =>
+        update($, view, s => {
+          const all = ['action', 'waiting', 'tooling', 'local']
+          const alone = all.every(n => (n === name ? !s.collapsed[n] : !!s.collapsed[n]))
+
+          return { ...s, collapsed: Object.fromEntries(all.map(n => [n, alone ? false : n !== name])) }
+        }),
       refresh: () => refresh($),
       remote: () => refreshRemote($),
       review: () => reviewCleanup($),

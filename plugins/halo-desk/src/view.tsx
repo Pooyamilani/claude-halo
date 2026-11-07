@@ -42,6 +42,7 @@ export type Usage = { pct: number; left: string }
 
 export type Actions = {
   toggle: (name: string) => unknown
+  focus: (name: string) => unknown
   refresh: () => unknown
   remote: () => unknown
   review: () => unknown
@@ -66,12 +67,24 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const glyph = (name: keyof typeof ICONS, c: string, size: number, alt: string, fallback = '●') =>
     rich && Svg ? <Svg source={ICONS[name](hex(c))} alt={alt} width={size} height={size} /> : <Text color={hex(c)}>{fallback}</Text>
 
-  // A pill is one tinted line of text, not a bordered box: it keeps a card's header a single row high.
+  // A pill is a small rounded, tinted box; the terminal keeps plain brackets.
   const pill = (label: string, color: string) =>
     rich ? (
-      <Text color={hex(color)} {...tint(color, 0.22)}>{` ${label} `}</Text>
+      <Box key={`pill-${label}`} flexDirection="row" alignItems="center" paddingX={1} borderStyle="round" {...edge(color, 0.4)} {...tint(color, 0.16)}>
+        <Text color={hex(color)}>{label}</Text>
+      </Box>
     ) : (
       <Text color={hex(color)}>{`[${label}]`}</Text>
+    )
+
+  // A quiet outlined button for small actions (Hide, Copy branch): rounded, lights on hover.
+  const ghost = (key: string, label: string, onPress: () => void) =>
+    rich ? (
+      <Box key={`ghost-${key}`} flexDirection="row" alignItems="center" paddingX={1} borderStyle="round" borderColor="#ffffff1f" hover={{ backgroundColor: '#ffffff14', borderColor: '#ffffff4d' }}>
+        <Button key={key} plain label={label} onPress={onPress} />
+      </Box>
+    ) : (
+      <Button key={key} plain label={label} onPress={onPress} />
     )
   const failed = v.sources.filter(s => !s.ok)
   const age = v.snapshotAge
@@ -85,11 +98,11 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
           : pill(`● Synced: ${age}m`, 'success')
 
-  // A status chip: a hollow ring and a label. The counts live in the section headers below.
-  const chip = (label: string, color: string) => (
-    <Box key={`chip-${label}`} flexDirection="row" gap={1} alignItems="center">
-      {glyph('hollow', color, 16, label, '○')}
-      <Text {...bold}>{label}</Text>
+  // A status chip: a ring, a label and the count. Pressing it shows only that section (again: all), Clean up opens the review.
+  const chip = (name: string, label: string, count: number, color: string, onPress: () => void) => (
+    <Box key={`chip-${name}`} flexDirection="row" gap={1} alignItems="center" paddingX={1} borderStyle="round" {...edge(count ? color : 'inactive', count ? 0.45 : 0.25)} {...tint(count ? color : 'inactive', count ? 0.1 : 0.04)} hover={rich ? { backgroundColor: `${hex(color)}26`, borderColor: `${hex(color)}99` } : {}}>
+      {glyph('hollow', count ? color : 'success', 16, label, count ? '●' : '○')}
+      <Button key={`chip-${name}`} plain label={`${label} ${count}`} onPress={onPress} />
     </Box>
   )
 
@@ -113,7 +126,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
 
     return (
-      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingY={1} hover={rich ? { backgroundColor: `${hex(accent)}12` } : {}}>
+      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingX={1} paddingY={1} borderStyle="round" borderColor="#ffffff00" hover={rich ? { backgroundColor: `${hex(accent)}14`, borderColor: `${hex(accent)}59` } : {}}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph('dot', accent, 12, accent)}
@@ -144,7 +157,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
               </Text>
             )}
             </Box>
-            {i.branch && <Button key={`copy-${i.project}-${i.branch}`} plain label="⧉ Copy branch" onPress={() => void act.copy(i.branch)} />}
+            {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy branch', () => void act.copy(i.branch))}
           </Box>
         </Box>
       </Box>
@@ -153,16 +166,16 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS) =>
     items.length === 0 ? null : (
-      <Box key={`section-${name}`} flexDirection="column" padding={1} {...glass()}>
+      <Box key={`section-${name}`} flexDirection="column" gap={1} padding={1} {...glass()}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph(mark, color, 20, label)}
             <Text {...bold}>{label}</Text>
             <Text color={hex('subtle')}>{items.length}</Text>
           </Box>
-          <Button key={`t-${name}`} plain label={v.collapsed[name] ? 'Show' : 'Hide'} onPress={() => void act.toggle(name)} />
+          {ghost(`t-${name}`, v.collapsed[name] ? 'Show' : 'Hide', () => void act.toggle(name))}
         </Box>
-        {!v.collapsed[name] && items.map(card)}
+        {!v.collapsed[name] && <Box flexDirection="column">{items.map(card)}</Box>}
       </Box>
     )
 
@@ -217,10 +230,10 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         </Box>
         {sync}
       </Box>
-      <Box flexDirection="row" gap={2} paddingX={1} flexWrap="wrap">
-        {chip('Needs action', g.action.length ? 'error' : 'success')}
-        {chip('Waiting', g.waiting.length ? 'warning' : 'success')}
-        {chip('Clean up', cleanable ? 'suggestion' : 'success')}
+      <Box flexDirection="row" gap={1} flexWrap="wrap">
+        {chip('action', 'Needs action', g.action.length, 'error', () => void act.focus('action'))}
+        {chip('waiting', 'Waiting', g.waiting.length, 'warning', () => void act.focus('waiting'))}
+        {chip('cleanup', 'Clean up', cleanable, 'suggestion', () => void act.review())}
       </Box>
       <Box flexDirection="row" gap={1}>
         {tipped('refresh', '↻ Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
@@ -244,18 +257,21 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {section('action', 'Next action', g.action, 'success', 'check')}
       {section('waiting', 'Waiting on something', g.waiting, 'suggestion', 'hourglass')}
       {section('tooling', 'Tooling, no card', g.tooling, 'merged', 'wrench')}
-      <Box flexDirection="column" padding={1} {...glass()}>
+      <Box flexDirection="column" gap={1} padding={1} {...glass()}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph('folder', 'inactive', 20, 'Local state')}
             <Text {...bold}>Local state</Text>
           </Box>
-          <Button key="t-local" plain label={v.collapsed.local ? 'Show' : 'Hide'} onPress={() => void act.toggle('local')} />
+          {ghost('t-local', v.collapsed.local ? 'Show' : 'Hide', () => void act.toggle('local'))}
         </Box>
-        {!v.collapsed.local &&
-          v.repos.map(r => (
-            <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
-          ))}
+        {!v.collapsed.local && (
+          <Box flexDirection="column" paddingX={1}>
+            {v.repos.map(r => (
+              <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
+            ))}
+          </Box>
+        )}
       </Box>
       {c && (
         <Box flexDirection="column" gap={1} padding={1} {...glass()}>
