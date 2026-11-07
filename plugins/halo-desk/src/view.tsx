@@ -93,8 +93,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   // The filters are one native segmented row of Buttons: the shown section is primary, the rest neutral. "All" resets.
   const SECTIONS = ['action', 'waiting', 'tooling', 'local']
   const alone = (name: string) => SECTIONS.every(n => (n === name ? !v.collapsed[n] : !!v.collapsed[n]))
+  // A Button holds one plain string here, so the category cue is a ring character in the label.
   const seg = (name: string, label: string, count: number, onPress: () => void, lit: boolean) => (
-    <Button key={`seg-${name}`} label={`${label} ${count}`} variant={lit ? 'primary' : undefined} onPress={onPress} />
+    <Button key={`seg-${name}`} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} variant={lit ? 'primary' : undefined} onPress={onPress} />
   )
   const filters = (
     <Box flexDirection="row" gap={1} flexWrap="wrap" alignItems="center">
@@ -163,18 +164,23 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     )
   }
 
-  const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS) =>
+  // Next action is the one glass card; the others are quiet headers so the eye lands on what needs the user.
+  const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS, loud = false) =>
     items.length === 0 ? null : (
-      <Box key={`section-${name}`} flexDirection="column" gap={1} padding={1} {...glass()}>
+      <Box key={`section-${name}`} flexDirection="column" gap={loud ? 1 : 0} {...(loud ? { padding: 1, ...glass() } : {})}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">
-            {glyph(mark, color, 20, label)}
+            {glyph(mark, color, loud ? 20 : 16, label)}
             <Text {...bold}>{label}</Text>
             <Text color={hex('subtle')}>{items.length}</Text>
           </Box>
           {ghost(`t-${name}`, v.collapsed[name] ? 'Show' : 'Hide', () => void act.toggle(name))}
         </Box>
-        {!v.collapsed[name] && <Box flexDirection="column">{items.map(card)}</Box>}
+        {v.collapsed[name] ? (
+          <Text color={hex('subtle')}>{`${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`}</Text>
+        ) : (
+          <Box flexDirection="column">{items.map(card)}</Box>
+        )}
       </Box>
     )
 
@@ -217,9 +223,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   return (
     <Box flexDirection="column" gap={1} padding={1}>
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center" padding={1} {...glass()}>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
         <Box flexDirection="row" gap={1} alignItems="center">
-          {rich && Svg ? <Svg source={MARK} alt="halo" width={44} height={44} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+          {rich && Svg ? <Svg source={MARK} alt="halo" width={32} height={32} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
@@ -231,8 +237,8 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       </Box>
       {filters}
       <Box flexDirection="row" gap={1}>
-        {tipped('refresh', '↻ Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
-        {tipped('remote', '☁ Remote', () => void act.arm('remote', act.remote))}
+        {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
+        {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
       </Box>
       {approval('refresh')}
       {approval('remote')}
@@ -248,19 +254,32 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {failed.map(s => (
         <Text color={hex('error')}>{`${s.name}: ${s.error ?? 'unavailable'}`}</Text>
       ))}
-      {section('action', 'Next action', g.action, 'success', 'check')}
-      {section('waiting', 'Waiting on something', g.waiting, 'suggestion', 'hourglass')}
+      {g.action.length + g.waiting.length === 0 && !v.busy && v.snapshotAge !== undefined && <Text color={hex('success')}>✓ Nothing needs you right now</Text>}
+      {section('action', 'Next action', g.action, 'success', 'check', true)}
+      {section('waiting', 'Waiting', g.waiting, 'suggestion', 'hourglass')}
       {section('tooling', 'Tooling', g.tooling, 'merged', 'wrench')}
-      <Box flexDirection="column" gap={1} padding={1} {...glass()}>
+      {!c && cleanable > 0 && (
         <Box flexDirection="row" justifyContent="space-between" alignItems="center">
           <Box flexDirection="row" gap={1} alignItems="center">
-            {glyph('folder', 'inactive', 20, 'Local state')}
+            {glyph('sparkles', 'suggestion', 16, 'Cleanup')}
+            <Text {...bold}>Cleanup</Text>
+            <Text color={hex('subtle')}>{`${cleanable} branch(es) to review`}</Text>
+          </Box>
+          {ghost('t-cleanup', 'Review', () => void act.review())}
+        </Box>
+      )}
+      <Box flexDirection="column">
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Box flexDirection="row" gap={1} alignItems="center">
+            {glyph('folder', 'inactive', 16, 'Local state')}
             <Text {...bold}>Local state</Text>
           </Box>
           {ghost('t-local', v.collapsed.local ? 'Show' : 'Hide', () => void act.toggle('local'))}
         </Box>
-        {!v.collapsed.local && (
-          <Box flexDirection="column" paddingX={1}>
+        {v.collapsed.local ? (
+          <Text color={hex('subtle')}>{`${v.repos.length} repos · ${v.repos.reduce((n, r) => n + r.branches.length, 0)} branches · ${v.repos.reduce((n, r) => n + r.dirty.length, 0)} changed`}</Text>
+        ) : (
+          <Box flexDirection="column">
             {v.repos.map(r => (
               <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
             ))}
@@ -297,9 +316,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         </Box>
       )}
       {usage && (
-        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} padding={1} {...glass()}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap">
           <Box flexDirection="row" gap={1} alignItems="center">
-            {glyph('bars', 'suggestion', 20, 'Usage', '▮')}
+            {glyph('bars', 'suggestion', 16, 'Usage', '▮')}
             <Text {...bold}>Usage</Text>
           </Box>
           <Box flexDirection="row" gap={1} alignItems="center">

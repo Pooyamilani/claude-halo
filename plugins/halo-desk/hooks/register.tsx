@@ -30,6 +30,14 @@ const view = atom({ plugin: 'halo-desk', key: 'view' } as const, {
 let OPTS: any = {}
 
 const patch = ($: any, p: Partial<View>) => update($, view, v => ({ ...v, ...p }) as ViewState)
+// The open/closed sections are a per-person habit: kept across sessions.
+const setCollapsed = ($: any, next: (s: ViewState) => Record<string, boolean>) =>
+  update($, view, s => {
+    const collapsed = next(s)
+    void $.store.set('collapsed', collapsed).catch(() => {})
+
+    return { ...s, collapsed }
+  })
 const get = async ($: any) => (await read($, view)) as unknown as View
 
 const dataDir = async ($: any) => {
@@ -246,20 +254,23 @@ async function drawBody($: any, e: any) {
     maxAge,
     cleanable: branchCandidates(v.items, v.snapshotAge, maxAge).length,
     act: {
-      toggle: name => update($, view, s => ({ ...s, collapsed: { ...s.collapsed, [name]: !s.collapsed[name] } })),
+      toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: !s.collapsed[name] })),
       // Show only this section; if it already is the only one open, show them all again.
       focus: name =>
-        update($, view, s => {
+        setCollapsed($, s => {
           const all = ['action', 'waiting', 'tooling', 'local']
-          if (name === 'all') return { ...s, collapsed: Object.fromEntries(all.map(n => [n, false])) }
+          if (name === 'all') return Object.fromEntries(all.map(n => [n, false]))
           const alone = all.every(n => (n === name ? !s.collapsed[n] : !!s.collapsed[n]))
 
-          return { ...s, collapsed: Object.fromEntries(all.map(n => [n, alone ? false : n !== name])) }
+          return Object.fromEntries(all.map(n => [n, alone ? false : n !== name]))
         }),
       refresh: () => refresh($),
       remote: () => refreshRemote($),
       review: () => reviewCleanup($),
-      copy: text => $.ui.copy({ text, surface: e.surface }),
+      copy: async text => {
+        await $.ui.copy({ text, surface: e.surface })
+        await patch($, { status: `Copied ${text}` })
+      },
       arm: (what, go) => arm($, what, go),
       cancel: () => patch($, { armed: undefined }),
       closeCleanup: () => patch($, { cleanup: undefined, armed: undefined, status: 'Updated' }),
@@ -275,6 +286,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'halo-desk', description: 'Open the Halo Desk pane (read-only until you confirm a button). Subcommands: add <path> [--jira URL] [--base BRANCH], config' })
+    const saved = await $.store.get('collapsed').catch(() => undefined)
+    if (saved && typeof saved === 'object') await patch($, { collapsed: saved as Record<string, boolean> })
     if (OPTS?.autoOpen === 'yes') {
       await $.ui.open({ id: PANE, title: 'Halo Desk' })
       void refresh($, false)

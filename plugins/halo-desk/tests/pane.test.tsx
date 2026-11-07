@@ -12,6 +12,8 @@ test('the pane draws its buttons and first-run hint on every surface', async ($,
   on('fs.exists', () => ({ value: false }))
   on('command.register', () => ({ value: { command: 'halo-desk' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('store.get', () => ({ value: undefined }))
+  on('store.set', () => ({ value: undefined }))
   on('clock.now', () => ({ value: Date.parse('2026-11-07T00:00:00Z') }))
   on('session.usage', () => ({ value: { startedAt: 0, context: {}, rateLimits: [{ kind: 'seven_day', percentUsed: 68, resetsAt: '2099-01-01T00:00:00Z' }] } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))

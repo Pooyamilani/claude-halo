@@ -57,9 +57,9 @@ test('the status chips carry their counts and are pressable', async ($, on) => {
   on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: e.surface !== 'terminal', v, maxAge: 60, cleanable: 2, act }))
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
-    expect(await ui.find({ type: 'Button', text: /^Needs action \d+$/ })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', text: /^Waiting \d+$/ })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', text: /^Cleanup \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^. Needs action \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^. Waiting \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^. Cleanup \d+$/ })).toBeTruthy()
     await ui.unmount()
   }
 })
