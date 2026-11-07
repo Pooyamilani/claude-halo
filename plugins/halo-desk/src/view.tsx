@@ -102,7 +102,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     <Button key={`seg-${name}`} plain={lit ? undefined : true} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
   )
   const filters = (
-    <Box flexDirection="row" flexWrap="wrap" alignItems="center" borderStyle="round" borderColor="#ffffff24" paddingX={0}>
+    <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
       {seg('all', 'All', g.action.length + g.waiting.length, () => void act.focus('all'), isDefault)}
       {seg('action', 'Needs action', g.action.length, () => void act.focus('action'), alone('action'))}
       {seg('waiting', 'Waiting', g.waiting.length, () => void act.focus('waiting'), alone('waiting'))}
@@ -110,12 +110,6 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     </Box>
   )
 
-  // One thin rule between entries and sections; truncated, so it never overflows.
-  const rule = (key: string) => (
-    <Text key={key} wrap="truncate-end" color="#ffffff1f">
-      {'─'.repeat(200)}
-    </Text>
-  )
   const accentOf = (i: Item) =>
     i.badges.includes('unpushed') ? 'error' : i.badges.includes('review-stale') || i.badges.includes('jira-mismatch') ? 'warning' : i.bucket === 'action' ? 'suggestion' : i.bucket === 'tooling' ? 'merged' : 'inactive'
 
@@ -136,7 +130,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
 
     return (
-      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingX={1} borderStyle="round" borderColor="#ffffff00" hover={rich ? { backgroundColor: `${hex(accent)}14`, borderColor: `${hex(accent)}59` } : {}}>
+      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column">
         <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
           <Box flexDirection="row" gap={1} alignItems="center" flexWrap="wrap">
             {glyph('dot', accent, 12, accent)}
@@ -147,10 +141,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
         </Box>
         <Box flexDirection="column" paddingLeft={3}>
-          <Text color={hex('subtle')}>
-            {i.project}
-            {i.branch ? ` · ${i.branch.length > 46 ? `${i.branch.slice(0, 30)}…${i.branch.slice(-15)}` : i.branch}` : ''}
-          </Text>
+          <Text wrap="truncate-end" color={hex('subtle')}>{`${i.project}${i.branch ? ` · ${i.branch}` : ''}`}</Text>
           <Text>{reason ? `${i.nextStep}: ${reason}` : i.nextStep}</Text>
           <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
             {mr && <Text color={hex('subtle')}>{mr}</Text>}
@@ -182,8 +173,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     </Box>
   )
   const frame = (name: string, header: any, body: any, summary: string) => (
-    <Box key={`section-${name}`} flexDirection="column">
-      {rule(`rule-${name}`)}
+    <Box key={`section-${name}`} flexDirection="column" gap={1}>
       {header}
       {collapsedOf(name) ? <Text color={hex('subtle')}>{summary}</Text> : body}
     </Box>
@@ -194,7 +184,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       : frame(
           name,
           head(name, label, color, mark, String(items.length), ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name))),
-          <Box flexDirection="column">{items.map((i, n) => (n ? <Box key={`s-${n}`} flexDirection="column">{rule(`r-${n}`)}{card(i)}</Box> : card(i)))}</Box>,
+          <Box flexDirection="column" gap={1}>{items.map(card)}</Box>,
           `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
         )
 
@@ -250,17 +240,17 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         {sync}
       </Box>
       {filters}
-      <Box flexDirection="row" gap={1}>
-        {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
-        {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
-      </Box>
-      {approval('refresh')}
-      {approval('remote')}
       <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
+          {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
+        </Box>
         {tip('refresh')}
         {tip('remote')}
         {tip('cleanup')}
       </Box>
+      {approval('refresh')}
+      {approval('remote')}
       {!/^Updated/.test(v.status) && <Text color={hex('subtle')}>{v.status}</Text>}
       {v.problems.map(p => (
         <Text color={hex('warning')}>{p}</Text>
@@ -312,7 +302,6 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           </Box>
         </Box>
       )}
-      {usage && rule('rule-usage')}
       {usage && (
         <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap">
           <Box flexDirection="row" gap={1} alignItems="center">
