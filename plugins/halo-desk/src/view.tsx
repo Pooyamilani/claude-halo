@@ -113,27 +113,27 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const label = i.key ?? i.branch ?? '?'
 
     return (
-      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column" marginBottom={1}>
-        <Box flexDirection="row" gap={1} alignItems="center" justifyContent="space-between">
-          <Box flexDirection="row" gap={1} alignItems="center" flexShrink={1}>
-            {glyph('dot', accent, 12, accent)}
-            <Text {...bold}>{i.jiraUrl ? <Link href={i.jiraUrl}>{label}</Link> : label}</Text>
-            {title && <Text wrap="truncate-end">{title}</Text>}
-          </Box>
-          {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
+      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column" marginBottom={2}>
+        <Box flexDirection="row" gap={1} alignItems="center" flexShrink={1}>
+          {glyph('dot', accent, 12, accent)}
+          <Text {...bold}>{i.jiraUrl ? <Link href={i.jiraUrl}>{label}</Link> : label}</Text>
+          {title && <Text wrap="truncate-end">{title}</Text>}
         </Box>
-        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" justifyContent="space-between" paddingLeft={3}>
-          <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
-            {status && pill(status, accent)}
-            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
-            <Text color={hex('subtle')}>{state}</Text>
-          </Box>
-          {i.mr?.webUrl && (
-            <Text>
-              <Link href={i.mr.webUrl}>Open MR</Link>
-            </Text>
-          )}
+        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" paddingLeft={3}>
+          {status && pill(status, accent)}
+          {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+          <Text color={hex('subtle')}>{state}</Text>
         </Box>
+        {(i.branch || i.mr?.webUrl) && (
+          <Box flexDirection="row" gap={3} alignItems="center" flexWrap="wrap" paddingLeft={3} marginTop={1}>
+            {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy branch', () => void act.copy(i.branch))}
+            {i.mr?.webUrl && (
+              <Text>
+                <Link href={i.mr.webUrl}>Open MR ↗</Link>
+              </Text>
+            )}
+          </Box>
+        )}
       </Box>
     )
   }
@@ -142,7 +142,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const CAP = 8
   const showAll = v.collapsed.more === false
   const label = (key: string, text: string, first = false) => (
-    <Box key={`g-${key}`} marginTop={first ? 0 : 1} marginBottom={1}>
+    <Box key={`g-${key}`} marginTop={first ? 0 : 1} marginBottom={2}>
       <Text {...bold} color={hex('subtle')}>
         {text}
       </Text>
