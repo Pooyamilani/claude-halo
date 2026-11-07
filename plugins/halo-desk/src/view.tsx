@@ -272,13 +272,41 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           </Box>
         </Box>
       )}
-      <Box flexDirection="column">
-        {ghost('t-local', v.collapsed.local === false ? '▾ Local details' : '▸ Local details', () => void act.toggle('local'))}
-        {v.collapsed.local === false &&
-          v.repos.map(r => (
-            <Text color={hex('subtle')}>{`${r.project}: ${r.branches.length} branches · ${r.stashes.length} stashes · ${r.dirty.length} changed · ${r.untracked.length} untracked`}</Text>
-          ))}
-      </Box>
+      {(() => {
+        const open = v.collapsed.local === false
+        const sum = (f: (r: any) => number) => v.repos.reduce((n: number, r: any) => n + f(r), 0)
+        // A count is dim at zero and coloured when it is something to look at.
+        const stat = (n: number, word: string, color: string) => (
+          <Text key={word} color={hex(n ? color : 'subtle')}>{`${n} ${word}`}</Text>
+        )
+
+        return (
+          <Box flexDirection="column" paddingX={2} paddingY={1} {...glass()}>
+            <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+              <Box flexDirection="row" gap={1} alignItems="center">
+                {glyph('folder', 'inactive', 16, 'Local details')}
+                <Text {...bold}>Local details</Text>
+              </Box>
+              {ghost('t-local', open ? 'Hide' : 'Show', () => void act.toggle('local'))}
+            </Box>
+            {open ? (
+              v.repos.map((r: any) => (
+                <Box key={`repo-${r.project}`} flexDirection="column" marginTop={1}>
+                  <Text {...bold}>{r.project}</Text>
+                  <Box flexDirection="row" gap={3} flexWrap="wrap">
+                    {stat(r.branches.length, 'branches', 'suggestion')}
+                    {stat(r.stashes.length, 'stashes', 'suggestion')}
+                    {stat(r.dirty.length, 'changed', 'warning')}
+                    {stat(r.untracked.length, 'untracked', 'warning')}
+                  </Box>
+                </Box>
+              ))
+            ) : (
+              <Text color={hex('subtle')}>{`${v.repos.length} repos · ${sum(r => r.branches.length)} branches · ${sum(r => r.dirty.length)} changed`}</Text>
+            )}
+          </Box>
+        )
+      })()}
     </Box>
   )
 }
