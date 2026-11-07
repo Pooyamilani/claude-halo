@@ -68,8 +68,6 @@ export type Actions = {
 /** Pure drawing: the element table, the surface, the data and the handlers in; a tree out. */
 export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number; cleanable: number; act: Actions; usage?: Usage; hover?: boolean }) {
   const { E, rich, v, maxAge, cleanable, act, usage } = args
-  // Hover reveals need a pointer: the desktop and VS Code have one, a phone does not.
-  const hoverable = args.hover ?? rich
   const { Box, Text, Button, Link, Svg } = E
   const bold: any = { bold: true }
   const tint = (c: string, a: number): any => (rich ? { backgroundColor: `${hex(c)}${alpha(a)}` } : {})
@@ -102,24 +100,20 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
           : pill(`● Synced: ${age}m`, 'success')
 
-  // The filters are one native segmented row of Buttons: the shown section is primary, the rest neutral. "All" resets.
-  const SECTIONS = ['action', 'waiting', 'tooling', 'local']
-  const collapsedOf = (name: string) => v.collapsed[name] ?? name !== 'action'
-  // The default view is Next action open, everything else closed: that is "All"; a filter is any other single open section.
-  const isDefault = SECTIONS.every(n => collapsedOf(n) === (n !== 'action'))
-  const alone = (name: string) => !isDefault && SECTIONS.every(n => (n === name ? !collapsedOf(n) : collapsedOf(n)))
-  // A Button holds one plain string here, so the category cue is a ring character in the label.
-  // One rounded track holds the segments: the shown one is primary, the rest plain.
-  const HOT: Record<string, string> = { all: '1', action: '2', waiting: '3', cleanup: '4' }
-  const seg = (name: string, label: string, count: number, onPress: () => void, lit: boolean) => (
-    <Button key={`seg-${name}`} hotkey={HOT[name]} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
+  // Three tabs: All (the sections, each open or closed as saved), Needs action, Waiting. A tab shows its one section, open.
+  const tab: string = v.tab ?? 'all'
+  const collapsedOf = (name: string) => (tab !== 'all' ? false : (v.collapsed[name] ?? name !== 'action'))
+  const shows = (name: string) => tab === 'all' || tab === name
+  const HOT: Record<string, string> = { all: '1', action: '2', waiting: '3' }
+  // A Button holds one plain string, so the ring character is part of the label.
+  const seg = (name: string, label: string, count: number) => (
+    <Button key={`seg-${name}`} hotkey={HOT[name]} variant={tab === name ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={() => void act.focus(name)} />
   )
   const filters = (
     <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
-      {seg('all', 'All', g.action.length + g.waiting.length, () => void act.focus('all'), isDefault)}
-      {seg('action', 'Needs action', g.action.length, () => void act.focus('action'), alone('action'))}
-      {seg('waiting', 'Waiting', g.waiting.length, () => void act.focus('waiting'), alone('waiting'))}
-      {seg('cleanup', 'Cleanup', cleanable, () => void act.review(), false)}
+      {seg('all', 'All', g.action.length + g.waiting.length)}
+      {seg('action', 'Needs action', g.action.length)}
+      {seg('waiting', 'Waiting', g.waiting.length)}
     </Box>
   )
 
@@ -133,9 +127,8 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain
   }
 
-  // A row is two lines: the Jira title, then what to do. Its actions appear under the pointer (always, where there is none).
-  // The first Next action is the hero: the same row on a lit card, with its actions always shown.
-  const row = (i: Item, items: Item[], hero = false) => {
+  // A row: the Jira title with Copy at the right, then the status, what to do, and the links. The first Next action is the hero.
+  const row = (i: Item) => {
     const d = describeItem(i)
     const accent = accentOf(i)
     const badgeLabels = d.badges.map(b => b.toLowerCase())
@@ -144,45 +137,32 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn, 70) : undefined
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
     const title = i.jira?.summary ? tidy(i.jira.summary, 80) : (i.branch ?? i.nextStep)
-    // A hover scope is 1 to 64 characters: branch names are not, so the scope is the row's position in the list.
-    const scope = `row-${items.indexOf(i)}-${(i.key ?? i.branch ?? '').slice(0, 24)}`
-    const actions = (
-      <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
-        {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
-        {i.jiraUrl && (
-          <Text>
-            <Link href={i.jiraUrl}>Jira card</Link>
-          </Text>
-        )}
-        {i.mr?.webUrl && (
-          <Text>
-            <Link href={i.mr.webUrl}>Merge request</Link>
-          </Text>
-        )}
-      </Box>
-    )
 
     return (
-      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column" hover={hoverable ? { scope } : undefined}>
-        <Box flexDirection="row" gap={1} alignItems="center">
-          {glyph('dot', accent, 12, accent)}
-          <Text wrap="truncate-end">
-            <Text {...bold}>{i.key ?? i.branch}</Text>
-            {`  ${title}`}
-          </Text>
-        </Box>
-        <Box flexDirection="column" paddingLeft={3}>
-          <Box flexDirection="row" gap={1} alignItems="center" flexWrap="wrap">
-            {status && pill(status, accent)}
-            {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
-            <Text color={hex('subtle')} wrap="truncate-end">{[reason ? `${i.nextStep}: ${reason}` : i.nextStep, mr].filter(Boolean).join(' · ')}</Text>
+      <Box key={`row-${i.project}-${i.branch ?? i.key}`} flexDirection="column">
+        <Box flexDirection="row" gap={1} alignItems="center" justifyContent="space-between">
+          <Box flexDirection="row" gap={1} alignItems="center" flexShrink={1}>
+            {glyph('dot', accent, 12, accent)}
+            <Text wrap="truncate-end">
+              <Text {...bold}>{i.key ?? i.branch}</Text>
+              {`  ${title}`}
+            </Text>
           </Box>
-          {hoverable && !hero ? (
-            <Box display="none" hover={{ scope, display: 'flex' }}>
-              {actions}
-            </Box>
-          ) : (
-            actions
+          {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
+        </Box>
+        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" paddingLeft={3}>
+          {status && pill(status, accent)}
+          {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+          <Text color={hex('subtle')}>{[reason ? `${i.nextStep}: ${reason}` : i.nextStep, mr].filter(Boolean).join(' · ')}</Text>
+          {i.jiraUrl && (
+            <Text>
+              <Link href={i.jiraUrl}>Jira</Link>
+            </Text>
+          )}
+          {i.mr?.webUrl && (
+            <Text>
+              <Link href={i.mr.webUrl}>Merge request</Link>
+            </Text>
           )}
         </Box>
       </Box>
@@ -207,35 +187,26 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     </Box>
   )
   const section = (name: string, label: string, items: Item[], color: string, mark: keyof typeof ICONS) =>
-    items.length === 0
+    items.length === 0 || !shows(name)
       ? null
       : frame(
           name,
-          head(name, label, color, mark, String(items.length), ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name))),
+          head(name, label, color, mark, String(items.length), tab === 'all' ? ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name)) : undefined),
           <Box flexDirection="column" gap={1}>
             {name === 'action' ? (
-              <Box flexDirection="column" gap={1} paddingX={1} {...glass('success')} {...tint('success', 0.06)}>
-                {row(items[0], items, true)}
+              <Box flexDirection="column" paddingX={1} {...glass('success')} {...tint('success', 0.06)}>
+                {row(items[0])}
               </Box>
             ) : (
-              row(items[0], items)
+              row(items[0])
             )}
-            {items.slice(1).map(i => row(i, items))}
+            {items.slice(1).map(row)}
           </Box>,
           `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
           name === 'action' ? 'success' : 'inactive',
         )
 
-  const tip = (name: keyof typeof TIPS) => (
-    <Box display="none" hover={{ scope: `tip-${name}`, display: 'flex' }}>
-      <Text color={hex('subtle')}>{TIPS[name]}</Text>
-    </Box>
-  )
-  const tipped = (name: keyof typeof TIPS, label: string, onPress: () => void, variant?: 'primary') => (
-    <Box hover={{ scope: `tip-${name}` }}>
-      <Button key={name} label={label} variant={variant} onPress={onPress} />
-    </Box>
-  )
+  const tipped = (name: string, label: string, onPress: () => void, variant?: 'primary') => <Button key={name} label={label} variant={variant} onPress={onPress} />
 
   const c = v.cleanup
 
@@ -278,14 +249,10 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         {sync}
       </Box>
       {filters}
-      <Box flexDirection="column">
-        <Box flexDirection="row" gap={1}>
-          {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
-          {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
-        </Box>
-        {tip('refresh')}
-        {tip('remote')}
-        {tip('cleanup')}
+      <Box flexDirection="row" gap={1} flexWrap="wrap">
+        {tipped('refresh', v.busy ? '↻ Working…' : '↻ Refresh', () => void (v.busy || act.arm('refresh', act.refresh)), 'primary')}
+        {tipped('remote', v.busy ? '☁ Working…' : '☁ Remote', () => void (v.busy || act.arm('remote', act.remote)))}
+        {tipped('cleanup', `✦ Cleanup ${cleanable}`, () => void act.review())}
       </Box>
       {approval('refresh')}
       {approval('remote')}
@@ -300,6 +267,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {section('action', 'Next action', g.action, 'success', 'check')}
       {section('waiting', 'Waiting', g.waiting, 'suggestion', 'hourglass')}
       {section('tooling', 'Tooling', g.tooling, 'merged', 'wrench')}
+      {tab === 'all' && (
       <Box flexDirection="column" gap={1} paddingX={2} {...glass()}>
         {!c && cleanable > 0 && (
           <Box flexDirection="column">
@@ -318,6 +286,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           )}
         </Box>
       </Box>
+      )}
       {c && (
         <Box flexDirection="column" gap={1} padding={1} {...glass()}>
           <Box flexDirection="row" gap={1} alignItems="center">

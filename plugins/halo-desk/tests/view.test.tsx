@@ -59,7 +59,7 @@ test('the status chips carry their counts and are pressable', async ($, on) => {
     const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface, props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
     expect(await ui.find({ type: 'Button', text: /^. Needs action \d+$/ })).toBeTruthy()
     expect(await ui.find({ type: 'Button', text: /^. Waiting \d+$/ })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', text: /^. Cleanup \d+$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', text: /^✦ Cleanup 2$/ })).toBeTruthy()
     await ui.unmount()
   }
 })
@@ -76,7 +76,7 @@ test('by default Next action is open, the other sections show a one-line summary
 
 test('rows lead with the Jira title; the first Next action is the hero with its actions drawn', async ($, on) => {
   const titled = { ...item, key: 'ACME-1', bucket: 'action', jira: { status: 'Review', summary: 'Conditional required discount' } }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: [titled, { ...titled, key: 'ACME-2', branch: 'ACME-2_' + 'very_long_branch_name_'.repeat(6) }], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [titled, { ...titled, key: 'ACME-2', branch: 'ACME-2_' + 'very_long_branch_name_'.repeat(6) }], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Text', text: /Conditional required discount/ })).toBeTruthy()
   expect(await ui.find({ type: 'Button', text: /Copy/ })).toBeTruthy()
@@ -89,8 +89,22 @@ test('odd real-world rows still draw', async ($, on) => {
     { ...item, key: 'HD-1', branch: undefined, bucket: 'waiting', jira: { status: 'Develop', summary: 'این مورد نیازمند «اضافه» شدن' }, mr: undefined, waitingOn: 'ON HOLD: ' + 'x'.repeat(300), badges: [] },
     { ...item, key: 'RCT-1', bucket: 'action', jira: { status: 'Review', summary: undefined }, badges: ['unpushed', 'on-hold'] },
   ]
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: odd, collapsed: {} }, maxAge: 60, cleanable: 2, act, usage: { pct: 27, left: '3d left' } }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: odd, collapsed: {} }, maxAge: 60, cleanable: 2, act, usage: { pct: 27, left: '3d left' } }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Button', text: /Copy/ })).toBeTruthy()
   await ui.unmount()
+})
+
+test('a tab shows only its section, open, and All shows them by their saved state', async ($, on) => {
+  const w = { ...item, key: 'WAIT-1', bucket: 'waiting', waitingOn: 'Someone', badges: [], jira: { status: 'Open', summary: 'Waiting card' }, mr: undefined }
+  const a = { ...item, key: 'ACT-1', bucket: 'action', jira: { status: 'Review', summary: 'Action card' } }
+  let tab = 'waiting'
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, v: { ...v, items: [a, w], collapsed: {}, tab }, maxAge: 60, cleanable: 0, act }))
+  for (const [t, wantWait, wantAct] of [['waiting', true, false], ['action', false, true]] as const) {
+    tab = t
+    const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
+    expect(!!(await ui.find({ type: 'Text', text: /Waiting card/ }))).toBe(wantWait)
+    expect(!!(await ui.find({ type: 'Text', text: /Action card/ }))).toBe(wantAct)
+    await ui.unmount()
+  }
 })

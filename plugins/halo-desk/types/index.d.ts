@@ -8,6 +8,7 @@ export type ViewState = {
   busy: boolean
   status: string
   collapsed: Record<string, boolean>
+  tab?: string
   armed?: string
   cleanup?: unknown
 }

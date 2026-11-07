@@ -249,7 +249,6 @@ async function drawBody($: any, e: any) {
   return renderView({
     E: $.ui.resolve(e),
     rich: e.surface !== 'terminal',
-    hover: e.surface === 'desktop' || e.surface === 'vscode',
     v,
     usage: limit ? { pct: limit.percentUsed, left } : undefined,
     maxAge,
@@ -257,17 +256,7 @@ async function drawBody($: any, e: any) {
     act: {
       toggle: name => setCollapsed($, s => ({ ...s.collapsed, [name]: !(s.collapsed[name] ?? name !== 'action') })),
       // Show only this section; if it already is the only one open, show them all again.
-      // All = the default view (Next action open, the rest closed). A filter opens one section; pressing it again goes back.
-      focus: name =>
-        setCollapsed($, s => {
-          const all = ['action', 'waiting', 'tooling', 'local']
-          const closed = (n: string) => s.collapsed[n] ?? n !== 'action'
-          const standard = Object.fromEntries(all.map(n => [n, n !== 'action']))
-          if (name === 'all') return standard
-          const alone = all.every(n => (n === name ? !closed(n) : closed(n)))
-
-          return alone ? (name === 'action' ? Object.fromEntries(all.map(n => [n, false])) : standard) : Object.fromEntries(all.map(n => [n, n !== name]))
-        }),
+      focus: name => patch($, { tab: name }),
       refresh: () => refresh($),
       remote: () => refreshRemote($),
       review: () => reviewCleanup($),
