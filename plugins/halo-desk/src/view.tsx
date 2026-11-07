@@ -71,15 +71,16 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const age = v.snapshotAge
   const ago = (m: number) => (m >= 2880 ? `${Math.floor(m / 1440)}d` : m >= 120 ? `${Math.floor(m / 60)}h` : `${m}m`)
   const stale = age !== undefined && age > maxAge
-  const sync = v.busy
-    ? pill('● Working', 'suggestion')
+  // One status line under the title: what the data is and how old, coloured by trust.
+  const [syncText, syncColor] = v.busy
+    ? ['● Working…', 'suggestion']
     : failed.length
-      ? pill('● Source error', 'error')
+      ? ['● A source failed', 'error']
       : age === undefined
-        ? pill('○ Local only', 'inactive')
+        ? ['○ Local only, no Jira or GitLab data', 'inactive']
         : stale
-          ? pill(`◷ Stale ${ago(age)}`, 'warning')
-          : pill(`● Synced ${ago(age)}`, 'success')
+          ? [`◷ Stale · updated ${ago(age)} ago`, 'warning']
+          : [`● Synced · updated ${ago(age)} ago`, 'success']
 
   // Two tabs. Needs action holds the cards' tasks and the branches without a card: both need the user.
   const tab: 'action' | 'waiting' = v.tab === 'waiting' ? 'waiting' : 'action'
@@ -200,23 +201,20 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   return (
     <Box flexDirection="column" gap={1} padding={1}>
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-        <Box flexDirection="row" gap={1} alignItems="center">
-          {rich && Svg ? <Svg source={rings([todo.length, g.waiting.length, cleanable])} alt={`${todo.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={40} height={40} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} paddingX={2} paddingY={1} {...glass(v.busy || failed.length || !stale ? 'inactive' : 'warning')}>
+        <Box flexDirection="row" gap={2} alignItems="center">
+          {rich && Svg ? <Svg source={rings([todo.length, g.waiting.length, cleanable])} alt={`${todo.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={52} height={52} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
             </Text>
+            <Text color={hex(syncColor)}>{syncText}</Text>
             <Text color={hex('subtle')}>{`${v.repos.length} repos · Jira · GitLab`}</Text>
           </Box>
         </Box>
-        <Box flexDirection="row" gap={1} alignItems="center">
-          {sync}
-          <Button key="sync" label={v.busy ? '↻ Working…' : '↻ Sync'} variant="primary" onPress={() => void (v.busy || act.arm('sync', async () => void act.remote()))} />
-        </Box>
+        <Button key="sync" label={v.busy ? '↻ Working…' : '↻ Sync'} variant="primary" onPress={() => void (v.busy || act.arm('sync', async () => void act.remote()))} />
       </Box>
       {approval('sync')}
-      {stale && !v.busy && <Text color={hex('warning')}>{`◷ Jira and GitLab data is ${ago(age)} old: Sync to refresh.`}</Text>}
       {!/^Updated/.test(v.status) && <Text color={hex('subtle')}>{v.status}</Text>}
       {v.problems.map(p => (
         <Text color={hex('warning')}>{p}</Text>
