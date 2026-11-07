@@ -67,11 +67,10 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const glyph = (name: keyof typeof ICONS, c: string, size: number, alt: string, fallback = '●') =>
     rich && Svg ? <Svg source={ICONS[name](hex(c))} alt={alt} width={size} height={size} /> : <Text color={hex(c)}>{fallback}</Text>
 
-  // A pill is one tinted line of text, never a bordered box: the desktop gives a border a full row above and below,
-  // which turns a small chip into a tall block. The terminal keeps plain brackets.
+  // A pill is coloured text with a dot: a tinted background would draw a sharp rectangle, a border a tall block.
   const pill = (label: string, color: string) =>
     rich ? (
-      <Text key={`pill-${label}`} color={hex(color)} {...tint(color, 0.22)}>{` ${label} `}</Text>
+      <Text key={`pill-${label}`} color={hex(color)}>{label.startsWith('●') || label.startsWith('○') || label.startsWith('◷') ? label : `● ${label}`}</Text>
     ) : (
       <Text color={hex(color)}>{`[${label}]`}</Text>
     )
@@ -99,7 +98,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   // A Button holds one plain string here, so the category cue is a ring character in the label.
   // One rounded track holds the segments: the shown one is primary, the rest plain.
   const seg = (name: string, label: string, count: number, onPress: () => void, lit: boolean) => (
-    <Button key={`seg-${name}`} plain={lit ? undefined : true} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
+    <Button key={`seg-${name}`} variant={lit ? 'primary' : undefined} label={`${name === 'all' ? '' : count ? '● ' : '○ '}${label} ${count}`} onPress={onPress} />
   )
   const filters = (
     <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
@@ -172,8 +171,8 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       {right}
     </Box>
   )
-  const frame = (name: string, header: any, body: any, summary: string) => (
-    <Box key={`section-${name}`} flexDirection="column" gap={1}>
+  const frame = (name: string, header: any, body: any, summary: string, color = 'inactive') => (
+    <Box key={`section-${name}`} flexDirection="column" gap={1} paddingX={2} {...glass(color)}>
       {header}
       {collapsedOf(name) ? <Text color={hex('subtle')}>{summary}</Text> : body}
     </Box>
@@ -186,6 +185,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           head(name, label, color, mark, String(items.length), ghost(`t-${name}`, collapsedOf(name) ? 'Show' : 'Hide', () => void act.toggle(name))),
           <Box flexDirection="column" gap={1}>{items.map(card)}</Box>,
           `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
+          name === 'action' ? 'success' : 'inactive',
         )
 
   const tip = (name: keyof typeof TIPS) => (
@@ -303,7 +303,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
         </Box>
       )}
       {usage && (
-        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap">
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap" paddingX={2} {...glass()}>
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph('bars', 'suggestion', 16, 'Usage', '▮')}
             <Text {...bold}>Usage</Text>
