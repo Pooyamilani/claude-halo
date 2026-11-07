@@ -76,7 +76,7 @@ test('by default Next action is open, the other sections show a one-line summary
 
 test('rows lead with the Jira title; the first Next action is the hero with its actions drawn', async ($, on) => {
   const titled = { ...item, key: 'ACME-1', bucket: 'action', jira: { status: 'Review', summary: 'Conditional required discount' } }
-  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: [titled, { ...titled, key: 'ACME-2', branch: 'ACME-2_x' }], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
+  on('ui.render', ($, e) => renderView({ E: $.ui.resolve(e), rich: true, hover: true, v: { ...v, items: [titled, { ...titled, key: 'ACME-2', branch: 'ACME-2_' + 'very_long_branch_name_'.repeat(6) }], collapsed: {} }, maxAge: 60, cleanable: 0, act }))
   const ui = await $.ui.mount({ plugin: 'halo-desk', component: 'Pane', requestId: 'other', surface: 'desktop', props: { title: 'Halo Desk', isFocused: false, bodyColumns: 30, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} } } as any)
   expect(await ui.find({ type: 'Text', text: /Conditional required discount/ })).toBeTruthy()
   expect(await ui.find({ type: 'Button', text: /Copy/ })).toBeTruthy()

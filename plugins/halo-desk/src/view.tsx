@@ -135,7 +135,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
 
   // A row is two lines: the Jira title, then what to do. Its actions appear under the pointer (always, where there is none).
   // The first Next action is the hero: the same row on a lit card, with its actions always shown.
-  const row = (i: Item, hero = false) => {
+  const row = (i: Item, items: Item[], hero = false) => {
     const d = describeItem(i)
     const accent = accentOf(i)
     const badgeLabels = d.badges.map(b => b.toLowerCase())
@@ -144,7 +144,8 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const reason = i.waitingOn && i.waitingOn.toLowerCase() !== i.jira?.status?.toLowerCase() ? tidy(i.waitingOn, 70) : undefined
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
     const title = i.jira?.summary ? tidy(i.jira.summary, 80) : (i.branch ?? i.nextStep)
-    const scope = `row-${i.project}-${i.branch ?? i.key}`
+    // A hover scope is 1 to 64 characters: branch names are not, so the scope is the row's position in the list.
+    const scope = `row-${items.indexOf(i)}-${(i.key ?? i.branch ?? '').slice(0, 24)}`
     const actions = (
       <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap">
         {i.branch && ghost(`copy-${i.project}-${i.branch}`, '⧉ Copy', () => void act.copy(i.branch))}
@@ -214,12 +215,12 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           <Box flexDirection="column" gap={1}>
             {name === 'action' ? (
               <Box flexDirection="column" gap={1} paddingX={1} {...glass('success')} {...tint('success', 0.06)}>
-                {row(items[0], true)}
+                {row(items[0], items, true)}
               </Box>
             ) : (
-              row(items[0])
+              row(items[0], items)
             )}
-            {items.slice(1).map(i => row(i))}
+            {items.slice(1).map(i => row(i, items))}
           </Box>,
           `${items[0].key ?? items[0].branch}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`,
           name === 'action' ? 'success' : 'inactive',
