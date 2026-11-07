@@ -90,13 +90,18 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           ? pill(`◷ Stale: ${age >= 2880 ? Math.floor(age / 1440) + 'd' : age >= 120 ? Math.floor(age / 60) + 'h' : age + 'm'}`, 'warning')
           : pill(`● Synced: ${age}m`, 'success')
 
-  // A status chip: a ring, a label and the count. Pressing it shows only that section (again: all), Clean up opens the review.
-  const chip = (name: string, label: string, count: number, color: string, onPress: () => void) => (
-    <Box key={`chip-${name}`} flexDirection="row" gap={1} alignItems="center" paddingX={1} borderStyle="round" {...edge(count ? color : 'inactive', count ? 0.45 : 0.25)} {...tint(count ? color : 'inactive', count ? 0.1 : 0.04)} hover={rich ? { backgroundColor: `${hex(color)}26`, borderColor: `${hex(color)}99` } : {}}>
-      {glyph('hollow', count ? color : 'success', 16, label, count ? '●' : '○')}
-      <Button key={`chip-${name}`} plain label={`${label} ${count}`} onPress={onPress} />
-    </Box>
-  )
+  // A status chip is a stat: ring, count first, then the label. The chip whose section is shown alone is lit; zero counts go quiet with a green ring.
+  const alone = (name: string) => ['action', 'waiting', 'tooling', 'local'].every(n => (n === name ? !v.collapsed[n] : !!v.collapsed[n]))
+  const chip = (name: string, label: string, count: number, color: string, onPress: () => void) => {
+    const lit = name !== 'cleanup' && alone(name)
+    const c = count ? color : 'inactive'
+    return (
+      <Box key={`chip-${name}`} flexDirection="row" gap={1} alignItems="center" paddingX={1} borderStyle="round" {...edge(c, lit ? 0.95 : count ? 0.45 : 0.2)} {...tint(c, lit ? 0.24 : count ? 0.1 : 0.03)} hover={rich ? { backgroundColor: `${hex(c)}2e`, borderColor: `${hex(c)}cc` } : {}}>
+        {glyph(count ? 'hollow' : 'check', count ? color : 'success', 16, label, count ? '●' : '✓')}
+        <Button key={`chip-${name}`} plain label={`${count}  ${label}`} onPress={onPress} />
+      </Box>
+    )
+  }
 
   const accentOf = (i: Item) =>
     i.badges.includes('unpushed') ? 'error' : i.badges.includes('review-stale') || i.badges.includes('jira-mismatch') ? 'warning' : i.bucket === 'action' ? 'suggestion' : i.bucket === 'tooling' ? 'merged' : 'inactive'
@@ -230,7 +235,6 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
       <Box flexDirection="row" gap={1}>
         {tipped('refresh', '↻ Refresh', () => void act.arm('refresh', act.refresh), 'primary')}
         {tipped('remote', '☁ Remote', () => void act.arm('remote', act.remote))}
-        {tipped('cleanup', '✦ Cleanup', () => void act.review())}
       </Box>
       {approval('refresh')}
       {approval('remote')}
