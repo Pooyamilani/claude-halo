@@ -20,15 +20,16 @@ const ICONS = {
   hollow: (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="${c}" stroke-width="3"/></svg>`,
 }
 /** The Halo mark as data: three rings (action, waiting, cleanup), each filled by how much is waiting in it. */
-const rings = (counts: [number, number, number]) => {
-  const arc = (r: number, n: number, c: string) => {
+const rings = (counts: [number, number, number], lit = -1) => {
+  const arc = (i: number, r: number, n: number, c: string) => {
+    const w = i === lit ? 5.2 : 3.2
     const len = 2 * Math.PI * r
     const frac = n === 0 ? 0 : Math.max(0.1, Math.min(1, n / 6))
 
-    return `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="3.2"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
+    return `<circle cx="23" cy="23" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="${i === lit ? 0.22 : 0.12}" stroke-width="${w}"/>${frac ? `<circle cx="23" cy="23" r="${r}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 23 23)"/>` : ''}`
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(19, counts[0], HALO.success)}${arc(13, counts[1], HALO.suggestion)}${arc(7, counts[2], HALO.merged)}<circle cx="23" cy="23" r="2.2" fill="${counts[0] ? HALO.success : '#ffffff'}" fill-opacity="${counts[0] ? 1 : 0.35}"/></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 46">${arc(0, 19, counts[0], HALO.success)}${arc(1, 13, counts[1], HALO.suggestion)}${arc(2, 7, counts[2], HALO.merged)}<circle cx="23" cy="23" r="2.2" fill="${counts[0] ? HALO.success : '#ffffff'}" fill-opacity="${counts[0] ? 1 : 0.35}"/></svg>`
 }
 
 export type Actions = {
@@ -203,7 +204,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     <Box flexDirection="column" gap={1} padding={1}>
       <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} paddingX={2} paddingY={1} {...glass(v.busy || failed.length || !stale ? 'inactive' : 'warning')}>
         <Box flexDirection="row" gap={2} alignItems="center">
-          {rich && Svg ? <Svg source={rings([todo.length, g.waiting.length, cleanable])} alt={`${todo.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={52} height={52} /> : <Text color={hex('success')} {...bold}>◉</Text>}
+          {rich && Svg ? <Svg source={rings([todo.length, g.waiting.length, cleanable], c ? 2 : tab === 'waiting' ? 1 : 0)} alt={`${todo.length} need action, ${g.waiting.length} waiting, ${cleanable} to clean up`} width={52} height={52} /> : <Text color={hex('success')} {...bold}>◉</Text>}
           <Box flexDirection="column">
             <Text {...bold}>
               halo <Text color={hex('subtle')}>desk</Text>
