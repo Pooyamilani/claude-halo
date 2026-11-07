@@ -59,9 +59,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     rich && Svg ? <Svg source={ICONS[name](hex(c))} alt={alt} width={size} height={size} /> : <Text color={hex(c)}>{fallback}</Text>
 
   // A pill is coloured text with a dot: a tinted background would draw a sharp rectangle, a border a tall block.
-  const pill = (label: string, color: string) =>
+  const pill = (label: string, color: string, dot = true) =>
     rich ? (
-      <Text key={`pill-${label}`} color={hex(color)}>{label.startsWith('●') || label.startsWith('○') || label.startsWith('◷') ? label : `● ${label}`}</Text>
+      <Text key={`pill-${label}`} color={hex(color)}>{!dot || /^[●○◷]/.test(label) ? label : `● ${label}`}</Text>
     ) : (
       <Text color={hex(color)}>{`[${label}]`}</Text>
     )
@@ -119,9 +119,9 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
           <Text {...bold}>{i.jiraUrl ? <Link href={i.jiraUrl}>{label}</Link> : label}</Text>
           {title && <Text wrap="truncate-end">{title}</Text>}
         </Box>
-        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" paddingLeft={3}>
-          {status && pill(status, accent)}
-          {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive'))}
+        <Box flexDirection="row" gap={2} alignItems="center" flexWrap="wrap" paddingLeft={3} marginTop={1}>
+          {status && pill(status, accent, false)}
+          {i.badges.map(b => pill(d.badges[i.badges.indexOf(b)], KIND_COLOR[b] ?? 'inactive', false))}
           <Text color={hex('subtle')}>{state}</Text>
         </Box>
         {(i.branch || i.mr?.webUrl) && (
