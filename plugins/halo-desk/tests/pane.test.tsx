@@ -21,7 +21,7 @@ test('the pane draws its buttons and first-run hint on every surface', async ($,
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await ui.find({ type: 'Button', key: 'refresh' })).toBeTruthy()
     expect(await ui.find({ type: 'Button', key: 'remote' })).toBeTruthy()
-    expect(await ui.find({ type: 'Button', key: 'chip-cleanup' })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', key: 'chip-label-cleanup' })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: /Press Refresh/ })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: /68% · \d+d left/ })).toBeTruthy()
     await ui.unmount()
