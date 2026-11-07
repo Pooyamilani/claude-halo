@@ -67,25 +67,17 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
   const glyph = (name: keyof typeof ICONS, c: string, size: number, alt: string, fallback = '●') =>
     rich && Svg ? <Svg source={ICONS[name](hex(c))} alt={alt} width={size} height={size} /> : <Text color={hex(c)}>{fallback}</Text>
 
-  // A pill is a small rounded, tinted box; the terminal keeps plain brackets.
+  // A pill is one tinted line of text, never a bordered box: the desktop gives a border a full row above and below,
+  // which turns a small chip into a tall block. The terminal keeps plain brackets.
   const pill = (label: string, color: string) =>
     rich ? (
-      <Box key={`pill-${label}`} flexDirection="row" alignItems="center" paddingX={1} borderStyle="round" {...edge(color, 0.4)} {...tint(color, 0.16)}>
-        <Text color={hex(color)}>{label}</Text>
-      </Box>
+      <Text key={`pill-${label}`} color={hex(color)} {...tint(color, 0.22)}>{` ${label} `}</Text>
     ) : (
       <Text color={hex(color)}>{`[${label}]`}</Text>
     )
 
-  // A quiet outlined button for small actions (Hide, Copy branch): rounded, lights on hover.
-  const ghost = (key: string, label: string, onPress: () => void) =>
-    rich ? (
-      <Box key={`ghost-${key}`} flexDirection="row" alignItems="center" paddingX={1} borderStyle="round" borderColor="#ffffff1f" hover={{ backgroundColor: '#ffffff14', borderColor: '#ffffff4d' }}>
-        <Button key={key} plain label={label} onPress={onPress} />
-      </Box>
-    ) : (
-      <Button key={key} plain label={label} onPress={onPress} />
-    )
+  // Small actions (Hide, Copy branch) are plain buttons, for the same reason.
+  const ghost = (key: string, label: string, onPress: () => void) => <Button key={key} plain label={label} onPress={onPress} />
   const failed = v.sources.filter(s => !s.ok)
   const age = v.snapshotAge
   const sync = v.busy
@@ -126,7 +118,7 @@ export function renderView(args: { E: any; rich: boolean; v: any; maxAge: number
     const mr = i.mr ? `MR !${i.mr.iid} ${i.mr.state}${i.mr.ageDays !== undefined ? ` · ${i.mr.ageDays}d` : ''}` : undefined
 
     return (
-      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingX={1} paddingY={1} borderStyle="round" borderColor="#ffffff00" hover={rich ? { backgroundColor: `${hex(accent)}14`, borderColor: `${hex(accent)}59` } : {}}>
+      <Box key={`card-${i.project}-${i.branch ?? i.key}`} flexDirection="column" paddingX={1} borderStyle="round" borderColor="#ffffff00" hover={rich ? { backgroundColor: `${hex(accent)}14`, borderColor: `${hex(accent)}59` } : {}}>
         <Box flexDirection="row" justifyContent="space-between" alignItems="center" gap={1}>
           <Box flexDirection="row" gap={1} alignItems="center">
             {glyph('dot', accent, 12, accent)}
